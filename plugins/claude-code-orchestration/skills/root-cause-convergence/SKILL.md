@@ -1,0 +1,16 @@
+---
+name: root-cause-convergence
+description: Use for high-impact or uncertain backend/frontend bug investigations where multiple independent investigations should converge before claiming a root cause.
+---
+
+# Root Cause Convergence
+
+Use this process when a bug is high impact, production-facing, uncertain, or has competing hypotheses.
+
+1. State the bug symptom and evidence available.
+2. Split independent hypotheses or investigation angles by layer: backend, frontend, database, observability, CI, browser reproduction, or integration boundary.
+3. Run independent finder agents or an agent team only when the user approves parallel investigation.
+4. Each finder must report evidence, reproduction status, suspected file/function/component, confidence level, and regression test recommendation.
+5. Compare findings. If findings converge, report the supported root cause. If findings diverge, do not claim final root cause; ask for human review and collect more evidence.
+6. A fix may start only after the root cause is sufficiently evidenced or the human accepts the uncertainty.
+7. After the fix, rerun the original reproduction command, failing test, browser flow, CI check, monitoring query, or MCP evidence check when possible.

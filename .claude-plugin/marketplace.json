@@ -1,0 +1,27 @@
+{
+  "name": "cc-orchestration",
+  "owner": {
+    "name": "Valverde",
+    "email": "valverdesolera@gmail.com"
+  },
+  "metadata": {
+    "description": "Private Claude Code orchestration marketplace v3: orchestrator + specialist subagents + meta-architecture-reviewer that audits the plugin itself. Composes with the official Anthropic plugins via reference/recommended-plugins.json single source of truth.",
+    "version": "3.0.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-code-orchestration",
+      "source": "./plugins/claude-code-orchestration",
+      "description": "Engineering orchestrator + 23 specialist subagents, 36 skills, 5 guardrail hooks. Single source of truth for plugin deps in reference/recommended-plugins.json.",
+      "version": "3.0.0",
+      "category": "development-workflows",
+      "tags": [
+        "orchestration",
+        "subagents",
+        "meta-architecture-review",
+        "single-source-of-truth"
+      ],
+      "strict": false
+    }
+  ]
+}

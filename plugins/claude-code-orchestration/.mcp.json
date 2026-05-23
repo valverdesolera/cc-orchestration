@@ -1,0 +1,4 @@
+{
+  "_comment": "This plugin's own MCP servers (empty by default - all preferred MCPs ship as separate official plugins). Install those plugins instead of declaring servers here. See plugin.json `dependencies` and INSTALL.md for the list.",
+  "mcpServers": {}
+}

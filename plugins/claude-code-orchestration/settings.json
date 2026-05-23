@@ -1,0 +1,4 @@
+{
+  "_comment": "Plugin-level default settings. Per Claude Code plugin spec, only 'agent' and 'subagentStatusLine' keys are honored from a plugin's settings.json. Activate the orchestrator as the main thread by default. Users can override with --agent or by changing the active agent in /agents.",
+  "agent": "engineering-orchestrator"
+}

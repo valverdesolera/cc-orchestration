@@ -1,0 +1,174 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for the cc-orchestration plugin's recommended plugin dependencies. CLAUDE.md, INSTALL.md, bootstrap/install_repo_bootstrap.sh, and .claude-plugin/plugin.json all reference this file. Do not duplicate the list elsewhere.",
+  "version": "3.0.0",
+  "marketplace": {
+    "name": "claude-plugins-official",
+    "add_command": "/plugin marketplace add anthropics/claude-plugins-official",
+    "note": "Auto-added in newer Claude Code; run the command if /plugin install fails with marketplace not found."
+  },
+  "plugins": [
+    {
+      "name": "context7",
+      "purpose": "Generic library/framework documentation lookup (version-aware).",
+      "used_by_agents": ["external-documentation-researcher", "data-architect", "coding-agent"],
+      "used_in_skills": ["official-docs-first"],
+      "category": "docs",
+      "optional": false,
+      "fallback_when_missing": "WebSearch with site: filter to vendor docs."
+    },
+    {
+      "name": "code-review",
+      "purpose": "Diff-based code review: line-by-line bugs, removed-behavior audit, cross-file tracer.",
+      "used_by_agents": ["code-reviewer", "pr-reviewer"],
+      "used_in_skills": ["implementation-feedback-loop"],
+      "category": "review",
+      "optional": false,
+      "fallback_when_missing": "Custom code-reviewer agent runs its full review WITHOUT the diff-level bug pass; mark the review as partial."
+    },
+    {
+      "name": "feature-dev",
+      "purpose": "7-phase feature workflow: code-explorer, code-architect, code-reviewer.",
+      "used_by_agents": ["codebase-researcher", "architecture-enforcer", "implementation-planner"],
+      "used_in_skills": ["greenfield-vs-brownfield"],
+      "category": "workflow",
+      "optional": true,
+      "fallback_when_missing": "codebase-researcher uses serena + grep; architecture-enforcer requires explicit human design input for greenfield."
+    },
+    {
+      "name": "superpowers",
+      "purpose": "Red-green-refactor TDD enforcement, structured debugging, /brainstorming, /execute-plan.",
+      "used_by_agents": ["test-agent", "requirements-product-analyst"],
+      "used_in_skills": ["assumption-validation-tests"],
+      "category": "workflow",
+      "optional": true,
+      "fallback_when_missing": "assumption-validation-tests skill drives the pre/post-test cycle locally without red-green-refactor enforcement."
+    },
+    {
+      "name": "github",
+      "purpose": "GitHub API: PRs, issues, CI, Actions, code scanning.",
+      "used_by_agents": ["pr-creator", "pr-reviewer", "backend-bug-finder", "frontend-bug-finder"],
+      "used_in_skills": ["pr-merge-conflict-wait", "pr-convention-detection"],
+      "category": "vcs",
+      "optional": false,
+      "fallback_when_missing": "Use `gh` CLI directly; some advanced queries may be unavailable."
+    },
+    {
+      "name": "atlassian",
+      "purpose": "Jira + Confluence API. Replaces the original JIRA MCP requirement.",
+      "used_by_agents": ["requirements-product-analyst", "implementation-planner"],
+      "category": "tickets",
+      "optional": true,
+      "fallback_when_missing": "User pastes ticket content manually; no auto-fetch."
+    },
+    {
+      "name": "playwright",
+      "purpose": "Browser automation, deterministic UI reproduction, end-to-end testing.",
+      "used_by_agents": ["frontend-bug-finder", "test-agent"],
+      "category": "browser",
+      "optional": true,
+      "fallback_when_missing": "Manual repro by the user; frontend-bug-finder produces a Playwright script for the user to run."
+    },
+    {
+      "name": "chrome-devtools-mcp",
+      "purpose": "Live Chrome browser control: console, network, DOM, screenshots, performance.",
+      "used_by_agents": ["frontend-bug-finder"],
+      "category": "browser",
+      "optional": true,
+      "fallback_when_missing": "User pastes console / network output; finder cannot run Lighthouse, take screenshots."
+    },
+    {
+      "name": "serena",
+      "purpose": "Semantic code retrieval, refactoring, debugging.",
+      "used_by_agents": ["codebase-researcher", "coding-agent", "parallel-research-coordinator"],
+      "category": "code-exploration",
+      "optional": false,
+      "fallback_when_missing": "Fall through to codegraphcontext / tree-sitter / codeql / codanna MCPs (manual install), or Grep / Glob."
+    },
+    {
+      "name": "claude-md-management",
+      "purpose": "Audit and maintain CLAUDE.md quality across the user's repos.",
+      "used_by_agents": ["documentation-reviewer"],
+      "category": "docs",
+      "optional": true,
+      "fallback_when_missing": "documentation-reviewer scans repo CLAUDE.md manually (no auto-audit)."
+    },
+    {
+      "name": "commit-commands",
+      "purpose": "Git commit workflows: commit, push, PR creation.",
+      "used_by_agents": ["pr-creator", "git-version-control-agent"],
+      "category": "vcs",
+      "optional": true,
+      "fallback_when_missing": "Direct `git` invocations; user verifies commit message manually."
+    },
+    {
+      "name": "claude-code-setup",
+      "purpose": "First-time Claude Code configuration helper.",
+      "used_by_agents": [],
+      "category": "setup",
+      "optional": true,
+      "fallback_when_missing": "Manual setup per Claude Code docs."
+    },
+    {
+      "name": "pr-review-toolkit",
+      "purpose": "Specialized agents for reviewing PRs (different angles).",
+      "used_by_agents": ["pr-reviewer"],
+      "category": "review",
+      "optional": true,
+      "fallback_when_missing": "pr-reviewer does a single-angle review; user runs /code-review separately for the diff pass."
+    },
+    {
+      "name": "microsoft-docs",
+      "purpose": "Microsoft + Azure + .NET + VS Code APIs documentation lookup.",
+      "used_by_agents": ["external-documentation-researcher", "data-architect"],
+      "category": "docs",
+      "optional": true,
+      "fallback_when_missing": "context7 with the Microsoft library identifier; WebSearch site:learn.microsoft.com."
+    },
+    {
+      "name": "frontend-design",
+      "purpose": "Production-grade frontend code generation with non-generic design.",
+      "used_by_agents": ["coding-agent"],
+      "category": "ui",
+      "optional": true,
+      "fallback_when_missing": "coding-agent writes UI by following existing component patterns in the repo."
+    }
+  ],
+  "additional_mcps_no_plugin_yet": [
+    {
+      "name": "postman",
+      "purpose": "Postman API collections lookup / API testing.",
+      "install": "Manual: /mcp add postman (see https://www.postman.com/postman/mcp for current install instructions).",
+      "used_by_agents": ["data-architect", "external-documentation-researcher"]
+    },
+    {
+      "name": "codegraphcontext",
+      "purpose": "Turn the codebase into a queryable graph; trace call paths.",
+      "install": "Manual /mcp add per project setup.",
+      "used_by_agents": ["codebase-researcher", "parallel-research-coordinator"]
+    },
+    {
+      "name": "tree-sitter",
+      "purpose": "AST-level structural queries.",
+      "install": "Manual /mcp add.",
+      "used_by_agents": ["codebase-researcher"]
+    },
+    {
+      "name": "codanna",
+      "purpose": "Function discovery + call relationships.",
+      "install": "Manual /mcp add.",
+      "used_by_agents": ["codebase-researcher"]
+    },
+    {
+      "name": "codeql",
+      "purpose": "Static analysis + security queries (CodeQL language).",
+      "install": "Manual /mcp add.",
+      "used_by_agents": ["backend-bug-finder", "codebase-researcher"]
+    },
+    {
+      "name": "srclight",
+      "purpose": "Optimized large-codebase search index.",
+      "install": "Manual /mcp add.",
+      "used_by_agents": ["codebase-researcher"]
+    }
+  ]
+}
