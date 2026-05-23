@@ -118,6 +118,55 @@ fi
 mkdir -p "$state_dir" "$state_dir/git-hooks-template"
 
 # ---------------------------------------------------------------------------
+# 0) Personal Claude Code config cleanup (~/.claude.json)
+#    Removes known-stale MCP server entries that duplicate official plugins.
+#    Runs on every bootstrap invocation (idempotent). Always backed up first.
+#    Generalizes: add new stale entry names to STALE_MCP_ENTRIES below.
+# ---------------------------------------------------------------------------
+clean_stale_personal_config() {
+  local cfg="$HOME/.claude.json"
+  [[ ! -f "$cfg" ]] && return 0
+
+  # One-time backup (never overwritten)
+  local backup="$cfg.backup-pre-cc-orchestration"
+  if [[ ! -f "$backup" ]]; then
+    cp "$cfg" "$backup"
+    echo "Backed up ~/.claude.json to $backup"
+  fi
+
+  # Use python3 (always on macOS) to safely edit JSON.
+  # Add more entries to STALE_MCP_ENTRIES as duplicates surface.
+  python3 - "$cfg" <<'PYCLEAN'
+import json, sys
+STALE_MCP_ENTRIES = ["microsoftLearn"]  # add more as needed
+
+cfg_path = sys.argv[1]
+try:
+    with open(cfg_path) as f:
+        data = json.load(f)
+except Exception as e:
+    print(f"WARN: could not parse {cfg_path}; skipping cleanup. ({e})", file=sys.stderr)
+    sys.exit(0)
+
+mcp_servers = data.get("mcpServers") or {}
+removed = []
+for name in STALE_MCP_ENTRIES:
+    if name in mcp_servers:
+        del mcp_servers[name]
+        removed.append(name)
+
+if removed:
+    data["mcpServers"] = mcp_servers
+    with open(cfg_path, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"Removed stale MCP entries from ~/.claude.json: {', '.join(removed)}")
+    print("(superseded by official plugins; original backed up)")
+PYCLEAN
+}
+
+clean_stale_personal_config
+
+# ---------------------------------------------------------------------------
 # 1) docs/ignored/ folders inside the repo (NOT committed; covered by exclude)
 # ---------------------------------------------------------------------------
 mkdir -p \
