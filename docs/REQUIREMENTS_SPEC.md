@@ -1,6 +1,12 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.2.3 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1, v3.2.2 of this spec
+Version 3.2.4 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1, v3.2.2, v3.2.3 of this spec
+
+**v3.2.4 changes summary (srclight hook hygiene):**
+- **Bootstrap `post-commit` / `post-checkout` hooks no longer dirty the repo's tracked `.gitignore`.** srclight's `index` command unconditionally appends `.srclight/` to `<repo>/.gitignore` (see `srclight/cli.py::_ensure_gitignore`). The hooks now snapshot `.gitignore` before invoking srclight and restore it byte-for-byte after, so the repo's tracked `.gitignore` is never modified. Per `gitignore-local-hygiene` skill guidance, `.srclight/` belongs in `.git/info/exclude` (which the bootstrap should already place there if added to the standard pattern list) — `.gitignore` is for team-wide ignore decisions.
+- **Bootstrap `post-commit` / `post-checkout` hooks: removed bogus `--incremental` flag.** srclight 0.8.1's `index` subcommand accepts only `--db` and `--embed` — no `--incremental`. The hook had been silently failing every commit/checkout (error swallowed by `2>/dev/null || true`), so srclight never actually indexed despite hooks firing. Dropping the flag makes the hooks functional.
+
+---
 
 **v3.2.3 changes summary (documentation correctness + standard files):**
 - **README.md + INSTALL.md** updated to honestly describe `/cco-update` as a verifier (per the v3.2.2 reframing). Both files previously still claimed it was a one-step shortcut, which was wrong. README's "Updating" section now leads with the manual two-step `/plugin marketplace update` + `/plugin update` flow, then mentions `/cco-update` as the optional verification step. INSTALL.md §5 (Updating) does the same and adds the fallback re-install sequence for cases where the local-path marketplace doesn't sync content. INSTALL.md §9 (Multi-machine setup) corrected from "To pull updates later: `/cco-update`." to point at the actual update commands.

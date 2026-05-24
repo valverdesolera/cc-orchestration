@@ -6,6 +6,14 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.4] — 2026-05-24
+
+### Fixed
+- **Bootstrap `post-commit` / `post-checkout` hooks: srclight no longer dirties the repo's tracked `.gitignore`.** srclight's `index` command unconditionally appends `.srclight/` to `<repo>/.gitignore` (see `srclight/cli.py::_ensure_gitignore`). The hooks now snapshot `.gitignore` before invoking srclight and restore it byte-for-byte after, so the repo's tracked `.gitignore` is never modified. Keep `.srclight/` in `.git/info/exclude` (local-only) instead. Aligns with `gitignore-local-hygiene` skill guidance ("Never add a pattern that the team would also want excluded — that belongs in `.gitignore`. `.git/info/exclude` is for personal-only patterns.") and with how the bootstrap already handles every other plugin-private pattern.
+- **Bootstrap `post-commit` / `post-checkout` hooks: removed bogus `--incremental` flag from `srclight index` invocation.** srclight 0.8.1 has no `--incremental` flag (`srclight index` accepts only `--db` and `--embed`). The flag caused srclight to exit with "No such option" every commit/checkout, silently swallowed by `2>/dev/null || true`. Net effect was that the hooks ran but srclight never actually indexed.
+
+---
+
 ## [3.2.3] — 2026-05-24
 
 ### Fixed
