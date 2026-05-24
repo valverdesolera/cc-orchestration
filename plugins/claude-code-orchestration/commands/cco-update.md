@@ -54,6 +54,52 @@ If you want to actually perform the update, run the two manual commands yourself
 - This command does NOT re-run the per-repo bootstrap. If the bootstrap script itself changed across versions, the user should re-run `bash ~/cc-orchestration/bootstrap/install_repo_bootstrap.sh --yes` from inside each repo they want refreshed. The bootstrap is idempotent.
 - If the user pointed the marketplace at a local clone path (`/plugin marketplace add ~/cc-orchestration` instead of `valverdesolera/cc-orchestration`), they should also `cd ~/cc-orchestration && git pull` before the marketplace update so the local clone reflects GitHub. The GitHub URL form does this automatically; the local-path form does not.
 
+## Known failure mode 1: `/plugin marketplace update` silently does not pull
+
+`/plugin marketplace update` sometimes reports success but does not actually advance the local marketplace git HEAD. Detect this immediately after running it:
+
+```bash
+git -C ~/.claude/plugins/marketplaces/cc-orchestration log -1 --oneline
+git -C ~/.claude/plugins/marketplaces/cc-orchestration rev-parse origin/main
+```
+
+If the two commits differ, the pull silently failed. Fix it manually:
+
+```bash
+git -C ~/.claude/plugins/marketplaces/cc-orchestration pull origin main
+```
+
+Then re-run `/plugin update claude-code-orchestration@cc-orchestration` and `/reload-plugins`.
+
+## Known failure mode 2: plugin reinstalls but does not load after `/reload-plugins`
+
+After the full uninstall + re-add + reinstall sequence, if `/reload-plugins` reports the same plugin/agent/skill counts as before (cc-orchestration absent), Claude Code silently skipped writing `"claude-code-orchestration@cc-orchestration": true` to the `enabledPlugins` map in `~/.claude/settings.json`. That map is the gate Claude Code checks at reload — a plugin absent from it will never load regardless of what `installed_plugins.json` says.
+
+**Diagnose:**
+
+```bash
+python3 -c "
+import json, os
+path = os.path.expanduser('~/.claude/settings.json')
+print(json.load(open(path, encoding='utf-8')).get('enabledPlugins', {}).get('claude-code-orchestration@cc-orchestration', 'MISSING'))
+"
+```
+
+**Fix (if output is `None` or `MISSING`):**
+
+```bash
+python3 -c "
+import json, os
+path = os.path.expanduser('~/.claude/settings.json')
+d = json.load(open(path, encoding='utf-8'))
+d['enabledPlugins']['claude-code-orchestration@cc-orchestration'] = True
+open(path, 'w', encoding='utf-8').write(json.dumps(d, indent=4))
+print('enabledPlugins updated')
+"
+```
+
+Then run `/reload-plugins`. The count should increase to reflect cc-orchestration's agents and skills.
+
 ## Why not have this command perform the update directly?
 
 I tried. Claude Code's slash-command system doesn't expose a way for one custom command to call another (or to call a built-in `/plugin` command). The alternative — having Claude shell out to manipulate `~/.claude/plugins/` directly via bash — is fragile, depends on Claude Code internals that may change between versions, and is exactly the kind of work the built-in `/plugin update` does correctly. Keeping this command as verifier-only is the honest design: it tells you what to do without pretending to do it.
