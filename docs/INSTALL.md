@@ -1,436 +1,323 @@
-# Claude Code Orchestration — Install Guide
+# cc-orchestration — Install Guide
 
-Version 3.0.0 · Updated 2026-05-23
+Version 3.2.1 · Updated 2026-05-24
 
-This guide installs a private Claude Code orchestration architecture: an engineering orchestrator + 23 specialist subagents + 36 skills + 5 guardrail hooks, designed to **compose with** the official Anthropic plugin stack (15 plugins) rather than duplicate them.
+A policy + glue layer on top of the official Claude Code plugin ecosystem. The official plugins do the heavy lifting (TDD enforcement, code-review, browser automation, doc lookups, GitHub API). This plugin enforces *your* engineering policy on top of them: pre-implementation discipline, plan review cycles, architecture enforcement, no-assumptions rule, official-docs-first, assumption-validation tests, comment policy, PR merge-conflict awareness.
 
-**What's new in v3:**
-- `meta-architecture-reviewer` agent — audits the plugin itself for overlap, drift, and unclear handoffs
-- Single source of truth for the recommended-plugins list — `reference/recommended-plugins.json` (no more drift across CLAUDE.md / plugin.json / INSTALL / bootstrap)
-- Graceful degradation — each agent now documents what it falls back to when an official plugin isn't installed
-- Consolidated review pipeline — ONE policy reviewer + ONE bug-finder pass per unit, no more 5-reviewer pile-up
-- `Limitations.md` + `EdgeCases.md` as hard gates before `Plan-Final.md`
-- Pre-implementation response must include Edge Cases + Limitations sections
-- Postman MCP section + workbook path decision documented
-
-The install is split into three parts: install 15 official plugins, install this plugin, run the repo bootstrap.
+**Critical principle**: official plugins are tools the custom agents *use*. They never replace the custom agents.
 
 ---
 
-## 1. What this is
+## 1. Quick install (30 seconds, any OS)
 
-A policy + glue layer on top of the official Claude Code plugin ecosystem. The official plugins do the heavy lifting (TDD enforcement, code-review, browser automation, doc lookups, GitHub API). This plugin enforces *your* engineering policy on top of them: pre-implementation discipline, plan review cycles, architecture enforcement, no-assumptions rule, official-docs-first, assumption-validation tests with pre/post comparison, comment policy (no tickets / branches / plans in code), PR merge-conflict awareness, local git hygiene.
+Inside Claude Code:
 
-**Critical principle: official plugins are tools that the custom agents *use*. They never replace the custom agents.** Every custom agent enforces a custom output contract regardless of which official plugin it leverages.
+```
+/plugin marketplace add valverdesolera/cc-orchestration
+/plugin install claude-code-orchestration@cc-orchestration
+/reload-plugins
+```
+
+Verify:
+
+```
+/agents   →  engineering-orchestrator + 23 specialists
+/hooks    →  5 hooks
+/mcp      →  context7 (and any others you've added)
+```
+
+Then ask Claude:
+
+> "What does CLAUDE.md say about UNVERIFIED claims and canonical per-dependency documentation?"
+
+If it returns §3 (verification-status rule) and §15 (`<CanonicalName>Documentation.md` convention), you're live.
 
 ---
 
 ## 2. Prerequisites
 
-- **Claude Code** 2.1.143 or later. Check: `claude --version`. Upgrade: `npm i -g @anthropic-ai/claude-code@latest` or `brew upgrade claude-code`.
-- **Git** 2.30+.
-- **bash** (macOS, Linux, WSL).
-- A GitHub account (or any Git host) if you want to publish your own marketplace.
+| Tool | Version | Install |
+|---|---|---|
+| Claude Code | 2.1.143+ | `npm install -g @anthropic-ai/claude-code` or via Homebrew |
+| git | 2.30+ | macOS: pre-installed or `brew install git`. Windows: https://git-scm.com/download/win (also installs Git Bash). Linux: `apt install git` / `dnf install git`. |
+| bash | Any | macOS/Linux: pre-installed. Windows: use **Git Bash** (ships with Git for Windows). Do NOT try to use WSL just for this. |
+| Python 3.10+ | Optional | Only needed if you run the per-repo bootstrap. Install: macOS `brew install python3`, Linux `apt install python3` / `dnf install python3`, Windows `winget install Python.Python.3.12`. |
+
+Confirm before installing:
+
+```bash
+claude --version    # 2.1.143 or later
+git --version       # 2.30 or later
+bash --version      # any
+python3 --version   # 3.10 or later (only needed for bootstrap)
+```
 
 ---
 
-## 3. Install — Path A: from a Git marketplace (recommended)
+## 3. Optional: per-repo overlay (the bootstrap)
 
-### 3.1 Install the recommended official plugins
+The plugin gives you all the agents/skills/hooks/commands. The bootstrap adds the per-repo layer that plugins *cannot* install:
 
-The canonical list of recommended plugins is in **`marketplace/plugins/claude-code-orchestration/reference/recommended-plugins.json`** — this is the SINGLE SOURCE OF TRUTH. Don't paste a list from somewhere else; ask the bootstrap to print it for you:
+- `docs/ignored/{implementation,workbooks,context}/` folders for transient artifacts (kept out of git via `.git/info/exclude`)
+- Git hooks that block AI attribution, env files, and private artifacts from commits/pushes
+- Branch and worktree wrapper scripts that respect your conventions
+- Cleanup of stale personal config entries (`microsoftLearn` MCP duplicate) in `~/.claude.json` (with backup)
 
-```bash
-bash /path/to/bootstrap/install_repo_bootstrap.sh --print-plugins
-```
+Run it once per repo where you want the overlay. **You do not need this for the plugin to work** — only run it if you want the per-repo file/hook layer.
 
-That command reads `reference/recommended-plugins.json` and prints the exact `/plugin install` lines to paste into Claude Code. Plugins marked `optional` only matter if your work touches the relevant stack (Microsoft = `microsoft-docs`, UI = `frontend-design`, etc.).
+### Two ways to run it
 
-The 15 plugins, summarized:
-
-| Plugin | Required? | Purpose |
-|---|---|---|
-| `context7` | required | Generic library/framework docs (version-aware) |
-| `code-review` | required | `/code-review` diff-based bug review |
-| `feature-dev` | optional | 7-phase feature workflow (code-explorer, code-architect, code-reviewer) |
-| `superpowers` | optional | Red-green-refactor TDD, /brainstorming, /execute-plan |
-| `github` | required | GitHub API |
-| `atlassian` | optional | Jira + Confluence (replaces the JIRA MCP requirement) |
-| `playwright` | optional | Browser automation |
-| `chrome-devtools-mcp` | optional | Live Chrome control |
-| `serena` | required | Semantic code retrieval (primary code-exploration tool) |
-| `claude-md-management` | optional | CLAUDE.md hygiene |
-| `commit-commands` | optional | Git commit workflows |
-| `claude-code-setup` | optional | First-time setup helper |
-| `pr-review-toolkit` | optional | PR review specialist agents |
-| `microsoft-docs` | optional | Microsoft / Azure docs |
-| `frontend-design` | optional | UI code generation |
-
-Each plugin has a `fallback_when_missing` field in `reference/recommended-plugins.json` documenting what happens if it's not installed.
-
-### 3.2 Publish this marketplace once
-
-```bash
-cd marketplace
-git init && git add . && git commit -m "cc-orchestration marketplace v2"
-git remote add origin git@github.com:<you>/cc-orchestration.git
-git push -u origin main
-```
-
-### 3.3 Install this plugin
-
-Inside Claude Code:
-```
-/plugin marketplace add <you>/cc-orchestration
-/plugin install claude-code-orchestration@cc-orchestration
-/reload-plugins
-```
-
-### 3.4 Bootstrap each repo
+**Without cloning** (recommended for first-time setup on a new machine):
 
 ```bash
 cd /path/to/your/repo
-bash /path/to/bootstrap/install_repo_bootstrap.sh --repo .
+curl -fsSL https://raw.githubusercontent.com/valverdesolera/cc-orchestration/main/bootstrap/install_repo_bootstrap.sh | bash -s -- --yes
 ```
 
-### 3.5 Verify
+**If you have the repo cloned locally**:
 
+```bash
+cd ~ && git clone https://github.com/valverdesolera/cc-orchestration.git    # one-time
+bash ~/cc-orchestration/bootstrap/install_repo_bootstrap.sh --repo /path/to/your/repo --yes
 ```
-/plugin             # all 16 plugins Installed, no Errors
-/agents             # engineering-orchestrator + 21 specialists
-/hooks              # 5 hooks from claude-code-orchestration
-/mcp                # MCPs from the official plugins
-/memory             # CLAUDE.md from this plugin loaded
+
+The bootstrap is idempotent — safe to re-run.
+
+### Verify the bootstrap
+
+```bash
+cd /path/to/your/repo
+ls docs/ignored/                      # implementation/  workbooks/  context/
+git config --get core.hooksPath       # path under ~/.local/share/cc-orchestration/
+cat .git/info/exclude | head -20      # personal-only patterns
 ```
 
 ---
 
-## 4. Install — Path B: local plugin (no Git push)
+## 4. Recommended companion plugins
+
+This plugin is designed to compose with the official Anthropic plugin set. To see the canonical install commands (read from a single source of truth so they cannot drift):
 
 ```bash
-git clone <this-package> ~/cc-orchestration
-# Then inside Claude Code:
-/plugin marketplace add ~/cc-orchestration/marketplace
+bash ~/cc-orchestration/bootstrap/install_repo_bootstrap.sh --print-plugins
+```
+
+This prints `/plugin install ...` lines for each recommended official plugin. **Paste them into Claude Code one line at a time** — pasting all at once concatenates them and Claude Code reports "Malformed input."
+
+The 15 recommended plugins:
+
+| Plugin | Why it matters |
+|---|---|
+| `context7` | Version-aware library docs (the generic doc-lookup fallback) |
+| `code-review` | `/code-review` runs the diff-level bug pass in the implementation feedback loop |
+| `feature-dev` | `code-explorer` + `code-architect` for greenfield design |
+| `superpowers` | TDD red-green-refactor enforcement |
+| `github` | GitHub API for PR creation, code scanning, GraphQL |
+| `atlassian` | Jira + Confluence APIs |
+| `playwright` | Browser automation + E2E testing |
+| `chrome-devtools-mcp` | Live DevTools control for frontend debugging |
+| `serena` | Semantic, LSP-backed code retrieval (preferred for symbol lookups) |
+| `claude-md-management` | Audit CLAUDE.md quality, capture learnings |
+| `commit-commands` | Safe `/commit` flow |
+| `claude-code-setup` | Per-stack setup helpers |
+| `pr-review-toolkit` | Multi-angle PR review |
+| `microsoft-docs` | Microsoft / Azure / .NET docs (preferred over context7 for MS stack) |
+| `frontend-design` | UI component pattern matching |
+
+Each has a documented `fallback_when_missing` in `reference/recommended-plugins.json` — agents detect missing plugins and degrade gracefully (e.g., custom `code-reviewer` runs without the `/code-review` bug pass and labels the result as "partial").
+
+Additionally, six MCPs without official plugins yet are documented in the same reference file (Postman, codegraphcontext, tree-sitter, codanna, codeql, srclight). Install manually via `/mcp add` when you need them.
+
+---
+
+## 5. Updating
+
+Inside Claude Code:
+
+```
+/cco-update
+```
+
+That's the one-step shortcut. It refreshes the marketplace and updates the installed plugin in one shot, then reports the new version.
+
+**On a machine where you cloned `~/cc-orchestration` locally** (and pointed the marketplace at the local path), also run `cd ~/cc-orchestration && git pull` before `/cco-update` so the marketplace sees the latest commits.
+
+To also update the bootstrap script itself across all repos you've bootstrapped, re-run the bootstrap inside each repo — it's idempotent and refreshes the hook templates.
+
+---
+
+## 6. Per-OS notes
+
+### macOS
+
+Works out of the box. If you use Homebrew, install git and python via brew. The bootstrap uses `python3` directly; macOS has it as `/usr/bin/python3`.
+
+### Linux
+
+Works out of the box. Use your distro's package manager for git and python3.
+
+### Windows
+
+Use **Git Bash** (ships with Git for Windows), not PowerShell, for any bootstrap or shell commands.
+
+- Typing `bash` in PowerShell routes to WSL, which is a *different* environment and is usually not installed. Open Git Bash as its own application (Windows key → "Git Bash") instead.
+- Paths use `/c/Users/your-name/...` form in Git Bash to refer to `C:\Users\your-name\...`. Folder names with spaces need quotes.
+- The bootstrap auto-detects whether `python3` or `python` is available and uses whichever works. If neither is found, install Python via `winget install Python.Python.3.12`, then close and reopen Git Bash so PATH refreshes.
+- The Microsoft Store stubs for `python.exe` / `python3.exe` can intercept Python calls and launch the App Store. Disable them: **Settings → Apps → Advanced app settings → App execution aliases → toggle off `python.exe` and `python3.exe`**.
+- If your repo lives in an OneDrive-synced folder, OneDrive can briefly lock files during the bootstrap. If anything fails mid-run, pause OneDrive sync (system tray icon → pause) and re-run.
+
+Inside Claude Code itself, the marketplace and plugin commands are identical to macOS/Linux.
+
+---
+
+## 7. Troubleshooting
+
+### `/plugin install` returns "Malformed input"
+
+You pasted multiple `/plugin install` lines at once. Paste each one separately.
+
+### `claude` command not found after reinstall
+
+Stale npm cache. Fix:
+
+```bash
+rm -rf ~/.nvm/versions/node/*/lib/node_modules/@anthropic-ai/claude-code 2>/dev/null
+rm -rf ~/.claude-code-* 2>/dev/null
+npm install -g @anthropic-ai/claude-code
+hash -r   # bash; for zsh use: rehash
+```
+
+### `bash: /opt/homebrew/bin/brew: No such file` at shell startup (macOS)
+
+Your `~/.zprofile` or `~/.bashrc` is sourcing Homebrew but Homebrew isn't installed at that path. Either install Homebrew (`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`) or comment out the line that references it.
+
+### `bad pattern: #` (zsh on macOS)
+
+Zsh treats `#` as a glob unless you opt in to bash-style comments. Add to `~/.zshrc`:
+
+```bash
+setopt interactivecomments
+```
+
+Then `source ~/.zshrc`. After that, pasted multi-line shell with comments works correctly.
+
+### Bootstrap on Windows says "Python 3 is required but was not found"
+
+Install Python (`winget install Python.Python.3.12`), close and reopen Git Bash, then re-run. If `python` works in Git Bash but `python3` doesn't, the bootstrap will try to auto-create a `python3.exe` shim alongside `python.exe` — and tell you it did. If that auto-shim fails (permission denied), create it manually:
+
+```bash
+PYDIR="$(dirname "$(command -v python)")"
+cp "$PYDIR/python.exe" "$PYDIR/python3.exe"
+```
+
+Then re-run the bootstrap.
+
+### PowerShell shows the WSL error when I type `bash ...`
+
+Same issue as above. Don't use `bash` from PowerShell. Open Git Bash as a separate application and run shell commands from there.
+
+### Plugin loads but agents/skills don't appear
+
+Run `/reload-plugins` inside Claude Code. If that doesn't help, uninstall and reinstall:
+
+```
+/plugin uninstall claude-code-orchestration@cc-orchestration
 /plugin install claude-code-orchestration@cc-orchestration
-/reload-plugins
-bash ~/cc-orchestration/bootstrap/install_repo_bootstrap.sh --repo /path/to/repo
 ```
 
----
+### CLAUDE.md rules don't seem to be applied
 
-## 5. The 23 agents (v3)
+Confirm CLAUDE.md is actually loaded: in a fresh Claude Code session, ask "What's in CLAUDE.md §3?" — you should get back the official-docs-first routing table. If you get a generic answer, the plugin may not be installed in the active project; run `/plugin` to confirm.
 
-Pre-existing custom agents (19, from v1):
-- `engineering-orchestrator` — coordinates the others
-- `requirements-product-analyst` — no-assumptions, asks questions, produces acceptance criteria
-- `external-documentation-researcher` — uses the right doc source per topic (microsoft-docs / context7 / etc.)
-- `codebase-researcher` — uses serena / codegraphcontext / etc.
-- `implementation-planner` — produces staged plans
-- `coding-agent` — implements one approved unit
-- `code-reviewer` — reviews every file against the stage + custom policy; combines with `/code-review`
-- `test-agent` — runs validation matrix; uses `superpowers` TDD when available
-- `documentation-reviewer` — keeps `docs/ignored/**` clean
-- `performance-reviewer` — anti-overengineering
-- `refactor-cleanup-agent` — minimal cleanup
-- `git-version-control-agent` — read-only git
-- `merge-conflict-resolver` — approved-files-only resolver
-- `pr-creator` — uses repo conventions + github plugin + commit-commands
-- `pr-reviewer` — uses pr-review-toolkit + /code-review
-- `backend-bug-finder` — finds bugs, doesn't fix
-- `frontend-bug-finder` — uses playwright + chrome-devtools-mcp
-- `pre-push-guardian` — strict final gate
-- `worktree-manager` — branch + worktree mechanics
+### Pre-commit hook blocks a legitimate commit (false positive)
 
-**NEW in v2 (3 agents + 1 coordinator):**
-- `architecture-enforcer` — verifies code aligns with codebase architecture
-- `data-architect` — DB schema, migrations, indexes, data contracts
-- `comment-policy-checker` — blocks ticket/branch/plan refs + AI attribution from code & commits
-- `parallel-research-coordinator` — orchestrates parallel researchers + consistency review + gap-fill rounds
-
-**NEW in v3:**
-- `meta-architecture-reviewer` — audits the cc-orchestration plugin itself for overlap, drift, unclear handoffs. Read-only. Produces `Plugin-Self-Review-<ts>.md`. Run this periodically (e.g., after any v(n+1) of the plugin) to catch the kind of issues this audit found.
-
----
-
-## 6. The 36 skills (v2)
-
-Pre-existing (27, from v1): `implementation-feedback-loop`, `implementation-planning`, `codebase-contextualization`, `validation-matrix`, `workbook-management`, `documentation-refresh`, `safe-git-commit`, `merge-conflict-handling`, `pr-convention-detection`, `branch-creation`, `worktree-handoff`, `agent-team-decision`, `root-cause-convergence`, `backend-error-triage`, `observability-correlation`, `database-debugging`, `backend-security-scan`, `frontend-error-triage`, `browser-reproduction-debugging`, `frontend-observability-correlation`, `design-system-visual-regression`, `accessibility-performance-triage`, `run-documentation-review`, `run-pre-push-guardian`, `run-pr-review`, `run-backend-bug-finder`, `run-frontend-bug-finder`.
-
-**NEW in v2 (9 skills):**
-- `greenfield-vs-brownfield` — pick the mode + apply the corresponding stricter rules
-- `plan-review-cycle` — multi-round plan convergence with 3 parallel reviewers
-- `parallel-codebase-research-cycle` — multi-round parallel research + consistency reviewer + gap-fill
-- `parallelization-decision` — forces explicit human approval before any fan-out
-- `plan-folder-organization` — one folder per feature, slug never contains ticket ID
-- `pr-merge-conflict-wait` — polls GH mergeability + required checks after PR opens
-- `assumption-validation-tests` — pre/post-test comparison artifacts (complements `superpowers`)
-- `official-docs-first` — routing rule (vendor-specific source first, context7 generic fallback)
-- `gitignore-local-hygiene` — `.git/info/exclude` patterns to stop personal files following branches
-
----
-
-## 7. Workflow at a glance
-
-```
-orchestrator
-  ↓
-requirements-product-analyst  (uses /brainstorming from superpowers)
-  ↓
-external-documentation-researcher  (microsoft-docs / context7 / ...)
-  ↓
-codebase-researcher → parallel-research-coordinator (if multi-area)
-  uses serena + codegraphcontext + codeql + codanna + tree-sitter
-  ↓
-architecture-enforcer  (uses feature-dev's code-architect as input)
-  ↓
-data-architect  (if DB schema/migrations involved)
-  ↓
-implementation-planner → plan-review-cycle (3 reviewers × N rounds)
-  ↓
-HUMAN APPROVAL of Plan-Final.md + parallelization-decision
-  ↓
-per stage:
-  coding-agent  (+ superpowers TDD red-green-refactor)
-  codebase-contextualization
-  architecture-enforcer
-  code-reviewer  (+ /code-review from code-review plugin)
-  test-agent  (+ assumption-validation-tests pre/post)
-  documentation-reviewer
-  comment-policy-checker
-  ↓
-pr-creator  (github + commit-commands plugins, repo conventions)
-  ↓
-pr-merge-conflict-wait  (polls mergeable + required checks)
-```
-
----
-
-## 8. Mandatory rules (from CLAUDE.md)
-
-1. **Verify before claiming** — no fact stated without verification.
-2. **No assumptions** — explicit pre-implementation response with Open Questions.
-3. **Official docs first** — vendor-specific source > context7 > WebSearch. Cite.
-4. **Codebase research first** — use serena + the right MCP for the task.
-5. **Implementation feedback loop** — code → context → architecture → review → test → docs → comment-policy.
-6. **TDD validate assumptions** — test fails before, passes after. Compare.
-7. **Parallelization opt-in only** — ask the human before fan-out.
-8. **Greenfield vs. brownfield** — brownfield default; drift requires plan declaration + human approval.
-9. **Plan review cycle** — Plan-v1 → 3 parallel reviewers → consolidate → revise → re-review; only Plan-Final.md is implementable.
-10. **No process metadata in code or commits** — tickets, branches, plans, stages, phases, AI attribution all blocked.
-11. **Local git hygiene** — `.git/info/exclude` for personal patterns; never `.gitignore`.
-12. **Database safety** — explicit confirmation for any write/migration/admin.
-13. **PR merge-conflict wait** — poll GH after PR opens.
-
----
-
-## 9. Daily commands
+The comment-policy regex may flag string literals that look like ticket IDs. To bypass for a single commit:
 
 ```bash
-# Start a normal session (orchestrator auto-active)
-claude
-
-# Override active agent
-claude --agent data-architect
-
-# Branch / worktree
-~/.local/share/cc-orchestration/new-branch.sh feature/something
-~/.local/share/cc-orchestration/new-worktree.sh feature/something ../wt-something
-
-# Print the plugin install commands
-~/.local/share/cc-orchestration/install_repo_bootstrap.sh --print-plugins
+ALLOW_COMMENT_POLICY_BYPASS=1 git commit -m "..."
 ```
 
----
+Other bypass envs: `ALLOW_CLAUDE_ARTIFACT_COMMIT=1`, `ALLOW_ENV_COMMIT=1`. Use them sparingly and only when you've verified the match is a false positive.
 
-## 10. The strengthened comment + commit policy
+### GitHub auth fails when cloning on a new machine
 
-This was the user's #1 pain point. v2 enforces it at FOUR layers:
+The repo is public — no auth needed for read. If you see auth errors, you're likely using SSH (`git@github.com:...`) without keys configured. Either set up SSH keys or use HTTPS (`https://github.com/...`). The bootstrap also globally rewrites SSH URLs to HTTPS via `git config --global url."https://github.com/".insteadOf "git@github.com:"` — apply that manually if needed.
 
-| Layer | What it blocks |
-| --- | --- |
-| `post-edit-policy-check.sh` hook (PostToolUse Edit/Write) | After-the-fact warning for any new ticket IDs / plan refs / branch names / AI attribution in code |
-| `comment-policy-checker` agent | Pre-commit scan that produces a structured BLOCK/CLEAN verdict |
-| `pre-push-guardian` agent | Final gate before push |
-| Git pre-commit + commit-msg + pre-push hooks (installed by bootstrap) | The shell hooks block at the git layer regardless of Claude |
+### Worktree wrappers don't copy my expected files
 
-To bypass legitimately (e.g., a string literal that happens to match), set `ALLOW_COMMENT_POLICY_BYPASS=1` for that commit only.
+Edit `.worktreeinclude` in the repo root. One pattern per line, gitignore-style. Defaults: `docs/ignored/`, `.env`, `.env.*`, `.envrc`.
 
 ---
 
-## 11. The local-git hygiene story
+## 8. Uninstall
 
-(From the user's requirements doc, verbatim.)
+Inside Claude Code:
 
-> When you work on a branch in git, untracked files are not owned by any branch. Git only manages files that have been committed — untracked files are invisible to git's branch logic, so they physically sit in your working directory regardless of which branch you're on.
-
-Real example: untracked DPRD-3543 files followed checkout into DPRD-3519 because git had no idea they existed.
-
-**Solution:** `.git/info/exclude` — local-only ignore file, never committed, never pushed, invisible to teammates, permanent for your local copy.
-
-This bootstrap auto-populates standard patterns. When you create *new* personal files, add them via the `gitignore-local-hygiene` skill — DO NOT add them to `.gitignore` (that affects the team).
-
----
-
-## 12. Doc lookup routing (the source-of-truth rule)
-
-Before claiming any external behavior, route to the MOST-SPECIFIC source:
-
-| Topic | First | Then |
-| --- | --- | --- |
-| Microsoft / Azure / .NET / VS Code / TypeScript on MS stack | `microsoft-docs@claude-plugins-official` | context7, WebSearch (site:learn.microsoft.com) |
-| Jira / Confluence / Atlassian | `atlassian@claude-plugins-official` | context7, WebSearch |
-| GitHub API / Actions / GraphQL | `github@claude-plugins-official` | context7, WebSearch |
-| Browser / DOM / web platform | `chrome-devtools-mcp` + `playwright` | MDN via WebSearch, context7 |
-| Any library / framework with public docs | `context7@claude-plugins-official` | vendor MCP, WebSearch |
-| Google Cloud, AWS, Stripe, Twilio, etc. | Vendor MCP (manual `/mcp add`) | context7, WebSearch site:docs.<vendor>.com |
-| Postman | Postman MCP (manual `/mcp add`) | context7, WebSearch |
-| Codebase itself | `serena@claude-plugins-official` | codegraphcontext, codeql, codanna, tree-sitter, srclight, Grep |
-
-**Reaching for context7 for a Microsoft/Azure question is a smell — use `microsoft-docs` instead.**
-
----
-
-## 13. Parallelization protocol
-
-Default: SERIALIZE. Parallelize only after the human approves. The `parallelization-decision` skill produces:
-
-| Stage A → Stage B | Dependency type |
-| --- | --- |
-| (none) | Safe to parallelize |
-| (data-only) | A's output feeds B — serialize |
-| (files-overlap) | Same files touched — serialize |
-| (unknown) | ASK the human |
-
-This applies to: implementation stages, parallel researchers in `parallel-research-coordinator`, multi-bug investigation, anything that fans out.
-
----
-
-## 14. Plan folder organization
-
-Every feature gets its own folder:
-```
-docs/ignored/implementation/<feature-slug>/
-  README.md (activity log)
-  Requirements.md
-  Plan-v1.md, Plan-v2.md, …, Plan-Final.md
-  Review-1-*.md
-  Review-Consolidated-1-*.md
-  Parallelization-<ts>.md
-  Limitations.md
-  EdgeCases.md
-  Stages/Stage-1-*.md
-  Progress.md
-  PostMortem.md
-```
-
-**Slug never contains the ticket ID, branch name, or any team-internal identifier.** Good: `oauth-login`. Bad: `dprd-3519`.
-
----
-
-## 15. Plan review cycle
-
-```
-implementation-planner → Plan-v1.md
-   ↓ plan-review-cycle round 1
-      ├─ requirements-alignment-reviewer
-      ├─ architecture-enforcer
-      └─ feasibility-reviewer
-   ↓ Review-Consolidated-1.md
-   ↓ implementation-planner revises → Plan-v2.md
-   ↓ round 2 (re-review)
-   ↓ ... up to 5 rounds
-   ↓ converged → Plan-Final.md   (only implementable artifact)
-```
-
-If still issues after round 5 → escalate to human. Do not implement against a non-Final plan.
-
----
-
-## 16. PR merge-conflict wait
-
-After `pr-creator` opens a PR, `pr-merge-conflict-wait`:
-1. Polls `gh pr view --json mergeable,mergeStateStatus,statusCheckRollup` every 5s up to 60s.
-2. If `CONFLICTING` → STOP, report conflicts, hand off to `merge-conflict-resolver` only with human approval.
-3. If `BEHIND` → recommend rebase.
-4. If failing required checks → report.
-5. Otherwise → PR ready.
-
-PR is **never** "submitted" without this check.
-
----
-
-## 17. Mobile / remote coding
-
-Two ways to keep coding from your phone:
-
-**Option A: Claude.ai mobile app**
-The official Claude mobile app (iOS / Android) lets you converse with Claude. On Max/Team plans the app exposes a Claude Code surface — you can send tasks to a remote Claude Code session and view results. The exact UX depends on your plan; check the in-app menu for "Claude Code" or "Coding mode." All your installed plugins (this one + the 15 officials) work identically because they live on the machine running Claude Code, not on the phone.
-
-**Option B: SSH into a workstation that runs Claude Code**
-Install a terminal app on your phone (Termius, Blink Shell, Tailscale SSH, etc.), SSH into a Mac/Linux workstation, and run `claude` there. Your local repo, plugins, and `.git/info/exclude` all live on that workstation — the phone is just the keyboard. This works even when you can't get the mobile app's Claude Code surface.
-
-**Option C: Tailscale + Claude Code on a home Mac**
-Same idea as B but Tailscale's mesh VPN gives you a stable hostname (`claude.tail-xxxxx.ts.net`) you can SSH to from anywhere without port-forwarding.
-
-In all three cases, the agents and skills run identically because they're loaded from the Claude Code install on the workstation. The phone is just an I/O device.
-
----
-
-## 18. Update / uninstall
-
-Update plugin:
-```
-/plugin marketplace update cc-orchestration
-/reload-plugins
-```
-
-Update bootstrap:
-```bash
-bash /path/to/install_repo_bootstrap.sh --repo /path/to/repo --yes  # idempotent
-```
-
-Uninstall plugin:
 ```
 /plugin uninstall claude-code-orchestration@cc-orchestration
 /plugin marketplace remove cc-orchestration
 ```
 
-Undo bootstrap:
+To also remove the per-repo bootstrap from a specific repo:
+
 ```bash
+cd /path/to/repo
 git config --unset core.hooksPath
-# manually clean docs/ignored/ + .git/info/exclude if desired
+# Optionally remove docs/ignored/ (you may want to keep its contents):
+# rm -rf docs/ignored
+# Remove personal patterns added to .git/info/exclude (edit manually).
+```
+
+To remove the shared state directory and wrapper scripts:
+
+```bash
 rm -rf ~/.local/share/cc-orchestration
+```
+
+`~/.claude.json` is left as-is. The pre-cc-orchestration backup remains at `~/.claude.json.backup-pre-cc-orchestration` if you ever need to restore.
+
+---
+
+## 9. Multi-machine setup
+
+The plugin and its updates flow via the public GitHub repo. On each machine:
+
+```
+/plugin marketplace add valverdesolera/cc-orchestration
+/plugin install claude-code-orchestration@cc-orchestration
+```
+
+To pull updates later: `/cco-update`.
+
+No SSH keys, no PATs, no collaborator invites — the repo is public, the marketplace handles the fetch. You can have the plugin on as many machines as you want without any account-linking concerns.
+
+For per-machine git identity hygiene when using the plugin in personal vs work repos, set `user.email` per repo (not globally) so personal repos use your personal identity and work repos use your work identity:
+
+```bash
+cd /path/to/personal/repo
+git config user.email "your-personal@email.com"
+
+cd /path/to/work/repo
+# leaves the global default in place (your work email)
 ```
 
 ---
 
-## 19. Troubleshooting
+## 10. Versioning
 
-**`/plugin` not recognized** → upgrade Claude Code.
+This plugin uses semantic versioning. Version is declared in three places (kept in sync by CI):
 
-**Plugin shows under Errors tab** → open it. Common causes: hook script not executable, bad frontmatter, `${CLAUDE_PLUGIN_ROOT}` not expanded (upgrade Claude Code).
+- `plugins/claude-code-orchestration/.claude-plugin/plugin.json` → `version`
+- `.claude-plugin/marketplace.json` → `metadata.version` and `plugins[0].version`
+- `docs/REQUIREMENTS_SPEC.md` → version header
 
-**`/agents` missing specialists** → orchestrator's `tools: Agent(...)` allowlist is the gate. To add an external agent, fork the plugin and extend the allowlist.
-
-**Git pre-commit blocking a legit commit** → set `ALLOW_COMMENT_POLICY_BYPASS=1` (or `ALLOW_CLAUDE_ARTIFACT_COMMIT=1` for the file-pattern blocks) for that commit only.
-
-**Worktree didn't get docs/ignored** → check `.worktreeinclude` in the source worktree; re-run `new-worktree.sh`.
-
-**Plugin install fails** → ensure `/plugin marketplace add anthropics/claude-plugins-official` ran successfully first.
+When the plugin version bumps and is pushed to `main`, the GitHub Actions workflow `.github/workflows/auto-tag.yml` automatically creates and pushes a matching `vX.Y.Z` tag. No manual `git tag` needed.
 
 ---
 
-## 20. References
+## 11. Where to go next
 
-- Plugins (create): https://code.claude.com/docs/en/plugins
-- Plugins (install): https://code.claude.com/docs/en/discover-plugins
-- Plugin marketplaces: https://code.claude.com/docs/en/plugin-marketplaces
-- Subagents: https://code.claude.com/docs/en/sub-agents
-- Skills: https://code.claude.com/docs/en/skills
-- Hooks: https://code.claude.com/docs/en/hooks-guide
-- Worktrees: https://code.claude.com/docs/en/worktrees
-- Agent teams: https://code.claude.com/docs/en/agent-teams
-- Git ignore: https://git-scm.com/docs/gitignore
-- Git hooks: https://git-scm.com/docs/githooks
-- Git worktree: https://git-scm.com/docs/git-worktree
-- claude.com/plugins (catalog browser)
+- [README.md](../README.md) — landing page with the 30-second install
+- [REQUIREMENTS_SPEC.md](REQUIREMENTS_SPEC.md) — full requirements spec (functional requirements, acceptance criteria, traceability matrix, guardrails)
+- [plugins/claude-code-orchestration/CLAUDE.md](../plugins/claude-code-orchestration/CLAUDE.md) — the engineering ruleset loaded into every Claude Code session
+- [plugins/claude-code-orchestration/reference/recommended-plugins.json](../plugins/claude-code-orchestration/reference/recommended-plugins.json) — single source of truth for plugin dependencies + fallbacks

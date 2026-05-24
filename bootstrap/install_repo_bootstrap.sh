@@ -18,6 +18,94 @@
 
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# Cross-platform Python 3 detection (macOS / Linux / Windows Git Bash)
+# ---------------------------------------------------------------------------
+# Tries `python3` first, falls back to `python` (verifying it's Python 3.x).
+# On Windows, `python` is usually the only command available; the Microsoft
+# Store stub at python3.exe will hang the shell, so we explicitly probe
+# version output rather than blindly trusting `command -v`.
+PYTHON3_CMD=""
+
+detect_python3() {
+  # Try python3 first (macOS, Linux, and Windows after the user creates a shim)
+  if command -v python3 >/dev/null 2>&1; then
+    local ver
+    ver="$(python3 --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || true)"
+    if [[ "$ver" =~ ^3\. ]]; then
+      PYTHON3_CMD="python3"
+      return 0
+    fi
+  fi
+  # Fall back to `python` (common on Windows; may also exist on macOS/Linux)
+  if command -v python >/dev/null 2>&1; then
+    local ver
+    ver="$(python --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || true)"
+    if [[ "$ver" =~ ^3\. ]]; then
+      PYTHON3_CMD="python"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+ensure_python3() {
+  if detect_python3; then
+    return 0
+  fi
+  cat >&2 <<EOF
+
+ERROR: Python 3 is required but was not found in PATH.
+
+Install it for your platform:
+  Windows:   winget install Python.Python.3.12
+             (then close + reopen Git Bash so PATH refreshes)
+  macOS:     brew install python3        (or download from python.org)
+  Debian:    sudo apt install python3
+  Fedora:    sudo dnf install python3
+
+On Windows, after installing, you may also need to disable the
+Microsoft Store stubs that intercept python.exe / python3.exe:
+  Settings -> Apps -> Advanced app settings -> App execution aliases
+  -> toggle off python.exe and python3.exe
+
+Then re-run this script.
+EOF
+  exit 1
+}
+
+# Optional: on Windows Git Bash, if `python` works but `python3` does not,
+# create a python3.exe shim alongside python.exe so future tools (and re-runs
+# of this script) can find python3 directly. Best-effort; skipped if the
+# directory isn't writable.
+ensure_python3_shim_on_windows() {
+  local uname_s
+  uname_s="$(uname -s 2>/dev/null || echo unknown)"
+  case "$uname_s" in
+    MINGW*|MSYS*|CYGWIN*) : ;;
+    *) return 0 ;;
+  esac
+  if [[ "$PYTHON3_CMD" != "python" ]]; then
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+  local python_path python_dir python3_path
+  python_path="$(command -v python)"
+  python_dir="$(dirname "$python_path")"
+  python3_path="$python_dir/python3.exe"
+  if [[ -f "$python3_path" ]]; then
+    return 0
+  fi
+  if [[ -w "$python_dir" ]]; then
+    if cp "$python_path" "$python3_path" 2>/dev/null; then
+      echo "Created Windows shim: $python3_path -> python.exe"
+      PYTHON3_CMD="python3"
+    fi
+  fi
+}
+
 usage() {
   cat <<EOF
 Usage: $0 --repo /path/to/repo [--state-dir DIR] [--no-git-hooks] [--no-wrappers] [--yes]
@@ -66,6 +154,8 @@ done
 # Reads the single source of truth (bootstrap/reference/recommended-plugins.json)
 # so this list cannot drift from CLAUDE.md / plugin.json / INSTALL.md.
 if [[ "$print_plugins" == 1 ]]; then
+  ensure_python3
+  ensure_python3_shim_on_windows
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   ref_json="$script_dir/reference/recommended-plugins.json"
   if [[ ! -f "$ref_json" ]]; then
@@ -73,7 +163,7 @@ if [[ "$print_plugins" == 1 ]]; then
     echo "Expected location: bootstrap/reference/recommended-plugins.json" >&2
     exit 1
   fi
-  python3 - "$ref_json" <<'PYEOF'
+  "$PYTHON3_CMD" - "$ref_json" <<'PYEOF'
 import json, sys
 d = json.load(open(sys.argv[1]))
 print('# Recommended plugins (run these from inside Claude Code)')
@@ -86,8 +176,8 @@ for p in d['plugins']:
     print(f'/plugin install {p["name"]}@{d["marketplace"]["name"]}{note}')
 print('/reload-plugins')
 print('')
-print('# Plus this plugin (cc-orchestration) - replace <github-owner>:')
-print('/plugin marketplace add <github-owner>/cc-orchestration')
+print('# Plus this plugin (cc-orchestration):')
+print('/plugin marketplace add valverdesolera/cc-orchestration')
 print('/plugin install claude-code-orchestration@cc-orchestration')
 print('')
 print('# Additional MCPs (no plugin yet; install manually if needed):')
@@ -97,6 +187,10 @@ for m in d['additional_mcps_no_plugin_yet']:
 PYEOF
   exit 0
 fi
+
+# Python 3 is required for the rest of the script (config cleanup uses it).
+ensure_python3
+ensure_python3_shim_on_windows
 
 [[ -n "$repo" ]] || { usage; exit 1; }
 
@@ -134,9 +228,9 @@ clean_stale_personal_config() {
     echo "Backed up ~/.claude.json to $backup"
   fi
 
-  # Use python3 (always on macOS) to safely edit JSON.
+  # Use Python 3 (detected at script start) to safely edit JSON.
   # Add more entries to STALE_MCP_ENTRIES as duplicates surface.
-  python3 - "$cfg" <<'PYCLEAN'
+  "$PYTHON3_CMD" - "$cfg" <<'PYCLEAN'
 import json, sys
 STALE_MCP_ENTRIES = ["microsoftLearn"]  # add more as needed
 
@@ -425,7 +519,7 @@ echo "  State dir:   $state_dir"
 echo ""
 echo "Next steps:"
 echo "  1. Inside Claude Code, add the marketplace and install the plugin:"
-echo "       /plugin marketplace add <github-owner>/cc-orchestration"
+echo "       /plugin marketplace add valverdesolera/cc-orchestration"
 echo "       /plugin install claude-code-orchestration@cc-orchestration"
 echo "  2. Reload plugins:"
 echo "       /reload-plugins"
@@ -433,5 +527,8 @@ echo "  3. Verify the orchestrator is active:"
 echo "       /agents      (expect engineering-orchestrator listed)"
 echo "       /hooks       (expect 5 hooks from claude-code-orchestration)"
 echo "       /mcp         (expect context7 + any MCPs you added)"
+echo ""
+echo "Tip: after future updates, run /cco-update inside Claude Code to pull"
+echo "     the latest plugin version in one step."
 echo ""
 [[ "$install_wrappers" == 1 ]] && echo "Branch / worktree wrappers: $state_dir/new-branch.sh, $state_dir/new-worktree.sh"

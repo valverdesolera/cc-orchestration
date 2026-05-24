@@ -1,0 +1,86 @@
+name: Auto-tag on version bump
+
+# Watches plugin.json + marketplace.json for version changes on push to main.
+# When both versions agree and no tag exists for that version, creates and
+# pushes a vX.Y.Z tag automatically. Idempotent: re-running on a no-op commit
+# (same version, tag already exists) does nothing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/claude-code-orchestration/.claude-plugin/plugin.json'
+      - '.claude-plugin/marketplace.json'
+
+permissions:
+  contents: write   # required to push tags
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so we can read existing tags
+
+      - name: Read versions from plugin.json + marketplace.json
+        id: versions
+        run: |
+          set -euo pipefail
+          plugin_version="$(jq -r '.version' plugins/claude-code-orchestration/.claude-plugin/plugin.json)"
+          marketplace_version="$(jq -r '.metadata.version' .claude-plugin/marketplace.json)"
+          marketplace_plugin_version="$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)"
+
+          echo "plugin.json version:                     $plugin_version"
+          echo "marketplace.json metadata.version:       $marketplace_version"
+          echo "marketplace.json plugins[0].version:     $marketplace_plugin_version"
+
+          if [[ "$plugin_version" != "$marketplace_version" ]]; then
+            echo "::error::Version mismatch: plugin.json=$plugin_version vs marketplace.json metadata.version=$marketplace_version. Bump both before pushing."
+            exit 1
+          fi
+          if [[ "$plugin_version" != "$marketplace_plugin_version" ]]; then
+            echo "::error::Version mismatch: plugin.json=$plugin_version vs marketplace.json plugins[0].version=$marketplace_plugin_version. Bump both before pushing."
+            exit 1
+          fi
+
+          echo "version=$plugin_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$plugin_version"    >> "$GITHUB_OUTPUT"
+
+      - name: Skip if tag already exists
+        id: check_tag
+        run: |
+          set -euo pipefail
+          tag="${{ steps.versions.outputs.tag }}"
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag already exists; nothing to do."
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $tag does not exist; will create it."
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create + push tag
+        if: steps.check_tag.outputs.should_tag == 'true'
+        env:
+          TAG: ${{ steps.versions.outputs.tag }}
+          VERSION: ${{ steps.versions.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $VERSION (auto-tagged from plugin.json version bump)"
+          git push origin "$TAG"
+          echo "Pushed tag $TAG"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Auto-tag result"
+            echo ""
+            echo "- Version detected: \`${{ steps.versions.outputs.version }}\`"
+            echo "- Tag: \`${{ steps.versions.outputs.tag }}\`"
+            echo "- Action: ${{ steps.check_tag.outputs.should_tag == 'true' && 'created and pushed' || 'skipped (tag already exists)' }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,16 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.2.0 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1 of this spec
+Version 3.2.1 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0 of this spec
+
+**v3.2.1 changes summary (multi-platform setup + update ergonomics):**
+- **Bootstrap** — Cross-platform Python 3 detection. The script now tries `python3` first, falls back to `python` (verifying it's Python 3.x), and on Windows Git Bash auto-creates a `python3.exe` shim alongside `python.exe` when only `python` is available. Fails fast with a platform-specific install command if no Python 3 is found.
+- **Bootstrap** — `<github-owner>` placeholder replaced with `valverdesolera` in `--print-plugins` output and the "Next steps" message, now that the repo is public.
+- **Bootstrap** — Final-message tip pointing users at the new `/cco-update` slash-command for easier updates.
+- **New custom slash-command `/cco-update`** — Wraps `/plugin marketplace update cc-orchestration` and `/plugin update claude-code-orchestration@cc-orchestration` into one step, with fallback to uninstall+reinstall on older Claude Code versions. Lives at `plugins/claude-code-orchestration/commands/cco-update.md`.
+- **CI: GitHub Actions auto-tag workflow** (`.github/workflows/auto-tag.yml`) watches `plugin.json` and `marketplace.json` on push to main; verifies both versions agree; auto-creates and pushes the matching `vX.Y.Z` tag. Idempotent. Eliminates manual `git tag` + `git push` step.
+- **Repo went public.** Eliminated the entire auth flow (SSH keys, PATs, collaborator invites) for cloning, installing, and updating across machines.
+- **README.md rewritten** as a 30-second-install landing page with current layout (no more outdated `marketplace/` path; reflects restructured root-level `.claude-plugin/`).
+- **INSTALL.md rewritten** around the simple case first, with per-OS notes (macOS / Linux / Windows-Git-Bash) and a focused troubleshooting section covering: pasted-too-many-plugin-installs, stale `claude` npm install, macOS Homebrew startup error, zsh `bad pattern: #`, Windows WSL routing in PowerShell, Windows Python 3 detection, OneDrive lock files, fresh-machine auth, and false-positive comment-policy bypasses.
 
 **v3.2 changes summary (parity pass against the user's global engineering rules):**
 - **§3** — Added verification-status discipline: unverified external behavior must be labeled UNVERIFIED in pre- and post-implementation responses; not hidden, not a hard stop.
