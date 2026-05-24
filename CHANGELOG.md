@@ -6,6 +6,13 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.5] — 2026-05-24
+
+### Added
+- **Bootstrap now adds `.srclight/` to the repo's `.git/info/exclude` automatically.** Completes the v3.2.4 fix: srclight's index/embeddings directory is now ignored locally in every bootstrapped repo, with no manual `git update-index` or hand-editing required. Matches the treatment of every other plugin-private pattern (`docs/ignored/`, `CLAUDE.md`, `CLAUDE.local.md`, `.worktreeinclude`, `.claude-personal/`, archive globs). Existing bootstrapped repos pick up the new pattern on the next `install_repo_bootstrap.sh` run.
+
+---
+
 ## [3.2.4] — 2026-05-24
 
 ### Fixed

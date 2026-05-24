@@ -1,7 +1,7 @@
 {
   "name": "claude-code-orchestration",
   "description": "Engineering orchestrator + 23 specialist subagents, 36 skills, and 5 guardrail hooks for a full requirements-driven coding cycle: requirements -> research -> plan-review -> code -> architecture-enforce -> review -> test (assumption-validation) -> docs -> commit-policy -> PR with merge-conflict-wait. Includes a meta-architecture-reviewer agent that audits the plugin itself. Designed to compose with the official Anthropic plugins (see reference/recommended-plugins.json for the canonical list).",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "author": {
     "name": "Valverde",
     "email": "valverdesolera@gmail.com"

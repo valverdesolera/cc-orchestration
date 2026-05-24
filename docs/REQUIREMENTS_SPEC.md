@@ -1,6 +1,11 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.2.4 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1, v3.2.2, v3.2.3 of this spec
+Version 3.2.5 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1, v3.2.2, v3.2.3, v3.2.4 of this spec
+
+**v3.2.5 changes summary (bootstrap completes srclight hygiene):**
+- **`add_exclude ".srclight/"` added to the bootstrap's standard `.git/info/exclude` pattern list.** Completes the v3.2.4 fix end-to-end: srclight's local index/embeddings directory is now ignored automatically in every bootstrapped repo (existing repos pick it up on the next `install_repo_bootstrap.sh` run). Matches the treatment of every other plugin-private pattern.
+
+---
 
 **v3.2.4 changes summary (srclight hook hygiene):**
 - **Bootstrap `post-commit` / `post-checkout` hooks no longer dirty the repo's tracked `.gitignore`.** srclight's `index` command unconditionally appends `.srclight/` to `<repo>/.gitignore` (see `srclight/cli.py::_ensure_gitignore`). The hooks now snapshot `.gitignore` before invoking srclight and restore it byte-for-byte after, so the repo's tracked `.gitignore` is never modified. Per `gitignore-local-hygiene` skill guidance, `.srclight/` belongs in `.git/info/exclude` (which the bootstrap should already place there if added to the standard pattern list) — `.gitignore` is for team-wide ignore decisions.
