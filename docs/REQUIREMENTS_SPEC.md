@@ -1,6 +1,11 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.2.1 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0 of this spec
+Version 3.2.2 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1 of this spec
+
+**v3.2.2 changes summary (post-3.2.1 honesty + dependency hygiene):**
+- **`/cco-update` reframed as verifier-only.** Discovered after shipping v3.2.1 that Claude cannot programmatically invoke Claude Code's built-in slash-commands (`/plugin marketplace update`, `/plugin update`) from inside a custom slash-command. The command now honestly describes what it does: read the installed plugin version, the local marketplace HEAD, and the GitHub remote; produce a comparison table; and tell the user the exact commands to run if out of date. No more pretending to be a one-step shortcut. The verification report it produces is still useful (Claude confirms three pointers align).
+- **CI: `actions/checkout` bumped v4 → v5** in `.github/workflows/auto-tag.yml`. Silences the Node 20 deprecation warning. No functional change.
+- **`.gitignore`: added `.claude/`** — local Claude Code session state (`settings.local.json` etc.) that appears when this repo is opened in Claude Code. Distinct from the plugin's `.claude-plugin/` (which is and should remain committed).
 
 **v3.2.1 changes summary (multi-platform setup + update ergonomics):**
 - **Bootstrap** — Cross-platform Python 3 detection. The script now tries `python3` first, falls back to `python` (verifying it's Python 3.x), and on Windows Git Bash auto-creates a `python3.exe` shim alongside `python.exe` when only `python` is available. Fails fast with a platform-specific install command if no Python 3 is found.

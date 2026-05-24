@@ -4,3 +4,8 @@
 Thumbs.db
 *~
 *.swp
+
+# Local Claude Code session state created when opening this repo in Claude Code.
+# Distinct from the plugin's .claude-plugin/ (which IS committed).
+.claude/
+
