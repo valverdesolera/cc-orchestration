@@ -276,21 +276,35 @@ mkdir -p "$(dirname "$exclude_file")"
 touch "$exclude_file"
 
 add_exclude() {
+  # Appends a bare gitignore pattern to .git/info/exclude (idempotent).
+  # We intentionally do NOT use leading-slash patterns (e.g. /foo) because
+  # they are silently ignored by git 2.x on Windows/Git-Bash — git reads
+  # the file but the leading slash is not treated as a repo-root anchor.
+  # Bare patterns (foo, docs/ignored/) match everywhere in the tree, which
+  # is fine given how specific these names are in practice.
   local pattern="$1"
+  # Also remove any old leading-slash variant already written by a prior
+  # bootstrap run, so the file does not accumulate both forms.
+  # grep -vxF handles special chars (*, ., etc.) safely as literal strings.
+  local tmp
+  tmp="$(mktemp)"
+  grep -vxF "/$pattern" "$exclude_file" > "$tmp" 2>/dev/null || true
+  mv "$tmp" "$exclude_file"
   grep -qxF "$pattern" "$exclude_file" 2>/dev/null || echo "$pattern" >> "$exclude_file"
 }
 
-# Patterns to keep local-only:
-add_exclude "/docs/ignored/"
-add_exclude "/CLAUDE.local.md"
-add_exclude "/.worktreeinclude"
-add_exclude "/.claude-personal/"
-add_exclude "/claude_code_architecture_pack*.zip"
-add_exclude "/claude_code_private_overlay*.zip"
-add_exclude "/Claude_Code_Private_Overlay*.pdf"
-add_exclude "/Claude_Code_Private_Overlay*.docx"
-add_exclude "/Claude_Code_Improvements*.pdf"
-add_exclude "/cc-orchestration*.zip"
+# Patterns to keep local-only (bare — no leading slash; see add_exclude note above):
+add_exclude "docs/ignored/"
+add_exclude "CLAUDE.md"
+add_exclude "CLAUDE.local.md"
+add_exclude ".worktreeinclude"
+add_exclude ".claude-personal/"
+add_exclude "claude_code_architecture_pack*.zip"
+add_exclude "claude_code_private_overlay*.zip"
+add_exclude "Claude_Code_Private_Overlay*.pdf"
+add_exclude "Claude_Code_Private_Overlay*.docx"
+add_exclude "Claude_Code_Improvements*.pdf"
+add_exclude "cc-orchestration*.zip"
 
 # ---------------------------------------------------------------------------
 # 3) .worktreeinclude â€” drives what new-worktree.sh copies into worktrees
