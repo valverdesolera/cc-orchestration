@@ -438,7 +438,27 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 done
 HOOK
 
-  chmod +x "$hooks_dir"/pre-commit "$hooks_dir"/commit-msg "$hooks_dir"/pre-push
+  cat > "$hooks_dir/post-commit" <<'HOOK'
+#!/usr/bin/env bash
+# Keeps the srclight code-intelligence index fresh after each commit.
+# No-op if srclight is not installed or this repo has not been indexed yet.
+if command -v srclight >/dev/null 2>&1 && [[ -d ".srclight" ]]; then
+  srclight index --incremental 2>/dev/null || true
+fi
+HOOK
+
+  cat > "$hooks_dir/post-checkout" <<'HOOK'
+#!/usr/bin/env bash
+# Keeps the srclight code-intelligence index fresh after branch switches.
+# No-op if srclight is not installed or this repo has not been indexed yet.
+# $3 = 1 means branch checkout (not file checkout); skip file-only checkouts.
+[[ "${3:-0}" == "1" ]] || exit 0
+if command -v srclight >/dev/null 2>&1 && [[ -d ".srclight" ]]; then
+  srclight index --incremental 2>/dev/null || true
+fi
+HOOK
+
+  chmod +x "$hooks_dir"/pre-commit "$hooks_dir"/commit-msg "$hooks_dir"/pre-push "$hooks_dir"/post-commit "$hooks_dir"/post-checkout
 
   # Configure core.hooksPath only if it isn't already set to something else.
   existing="$(git -C "$repo_root" config --get core.hooksPath || true)"
