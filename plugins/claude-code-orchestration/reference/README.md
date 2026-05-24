@@ -8,7 +8,7 @@ need a structured lookup (e.g., "which plugin should I use for Microsoft docs?")
 
 | File | Used by | Purpose |
 |---|---|---|
-| `recommended-plugins.json` | bootstrap (`--print-plugins`), CLAUDE.md §21, `plugin.json` `_recommendedPlugins`, INSTALL.md §3.1, all agents' fallback decisions | The 15 official plugins + their fallback behavior when not installed |
+| `recommended-plugins.json` | bootstrap (`--print-plugins`), CLAUDE.md §21, `plugin.json` `_recommendedPluginsSource`, INSTALL.md §4 ("Recommended companion plugins"), all agents' fallback decisions | The 15 official plugins + their fallback behavior when not installed |
 
 Rules:
 - Anything in `reference/` is data, not policy.

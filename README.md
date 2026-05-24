@@ -33,13 +33,20 @@ The bootstrap is idempotent — safe to re-run.
 
 ## Updating
 
-Inside Claude Code:
+Inside Claude Code, run the two built-in commands:
+
+```
+/plugin marketplace update cc-orchestration
+/plugin update claude-code-orchestration@cc-orchestration
+```
+
+After that, you can verify the result with the custom slash-command shipped by this plugin:
 
 ```
 /cco-update
 ```
 
-That's the one-step shortcut. It wraps `/plugin marketplace update` + `/plugin update` and reports the new version.
+`/cco-update` is a **verifier**, not an updater — Claude Code's plugin system doesn't allow a custom slash-command to invoke built-in slash-commands. The verifier reads the installed plugin version, the local marketplace HEAD, and the GitHub remote, and reports whether all three agree. If you're out of date it tells you the exact commands to run (the two above).
 
 ## What's inside
 

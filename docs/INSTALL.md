@@ -132,17 +132,36 @@ Additionally, six MCPs without official plugins yet are documented in the same r
 
 ## 5. Updating
 
-Inside Claude Code:
+Inside Claude Code, run the two built-in commands:
+
+```
+/plugin marketplace update cc-orchestration
+/plugin update claude-code-orchestration@cc-orchestration
+```
+
+After that, optionally verify the result:
 
 ```
 /cco-update
 ```
 
-That's the one-step shortcut. It refreshes the marketplace and updates the installed plugin in one shot, then reports the new version.
+`/cco-update` is a **verifier**, not an updater. Claude Code's plugin system doesn't allow custom slash-commands to invoke built-in slash-commands like `/plugin update`, so a custom command can't perform the update on your behalf. What `/cco-update` does is read the installed plugin version, the local marketplace HEAD, and the GitHub remote, then report whether all three agree. If you're out of date, it tells you the exact commands to run (the two above).
 
-**On a machine where you cloned `~/cc-orchestration` locally** (and pointed the marketplace at the local path), also run `cd ~/cc-orchestration && git pull` before `/cco-update` so the marketplace sees the latest commits.
+**If `/plugin marketplace update` returns "(no content)" or the install version doesn't change after `/plugin update`**, you're probably on a local-path marketplace registration (`/plugin marketplace add ~/cc-orchestration`) which doesn't reliably propagate file changes. Use the full re-install sequence instead:
 
-To also update the bootstrap script itself across all repos you've bootstrapped, re-run the bootstrap inside each repo — it's idempotent and refreshes the hook templates.
+```
+/plugin uninstall claude-code-orchestration@cc-orchestration
+/plugin marketplace remove cc-orchestration
+/plugin marketplace add valverdesolera/cc-orchestration
+/plugin install claude-code-orchestration@cc-orchestration
+/reload-plugins
+```
+
+This switches you to the GitHub URL form of the marketplace, which behaves correctly for future updates.
+
+**On a machine where you cloned `~/cc-orchestration` locally** (and need the bootstrap script + reference files updated too), also run `cd ~/cc-orchestration && git pull`. This is unrelated to the plugin update but worth doing if you'll be re-running the bootstrap on additional repos.
+
+To also update the bootstrap script's effect across repos you've already bootstrapped, re-run the bootstrap inside each repo — it's idempotent and refreshes the hook templates.
 
 ---
 
@@ -287,7 +306,7 @@ The plugin and its updates flow via the public GitHub repo. On each machine:
 /plugin install claude-code-orchestration@cc-orchestration
 ```
 
-To pull updates later: `/cco-update`.
+To pull updates later, run `/plugin marketplace update cc-orchestration` and `/plugin update claude-code-orchestration@cc-orchestration` inside Claude Code (see §5 for the full update flow and the fallback re-install sequence).
 
 No SSH keys, no PATs, no collaborator invites — the repo is public, the marketplace handles the fetch. You can have the plugin on as many machines as you want without any account-linking concerns.
 

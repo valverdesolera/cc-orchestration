@@ -1,6 +1,12 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.2.2 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1 of this spec
+Version 3.2.3 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1, v3.2.0, v3.2.1, v3.2.2 of this spec
+
+**v3.2.3 changes summary (documentation correctness + standard files):**
+- **README.md + INSTALL.md** updated to honestly describe `/cco-update` as a verifier (per the v3.2.2 reframing). Both files previously still claimed it was a one-step shortcut, which was wrong. README's "Updating" section now leads with the manual two-step `/plugin marketplace update` + `/plugin update` flow, then mentions `/cco-update` as the optional verification step. INSTALL.md §5 (Updating) does the same and adds the fallback re-install sequence for cases where the local-path marketplace doesn't sync content. INSTALL.md §9 (Multi-machine setup) corrected from "To pull updates later: `/cco-update`." to point at the actual update commands.
+- **`plugins/claude-code-orchestration/reference/README.md`** fixed broken cross-reference: previously pointed at "INSTALL.md §3.1" which no longer exists after the v3.2.1 INSTALL.md rewrite; now correctly points at §4 ("Recommended companion plugins"). Also corrected the `plugin.json` field name from `_recommendedPlugins` to `_recommendedPluginsSource` to match the actual field.
+- **`LICENSE`** added at repo root (standard MIT). Closes the legal-ambiguity gap of having a public repo with `"license": "MIT"` declared in `plugin.json` but no actual LICENSE file alongside.
+- **`CHANGELOG.md`** added at repo root in Keep-a-Changelog format. Version history was previously only buried in this spec (`REQUIREMENTS_SPEC.md`) under nested headers; the changelog is now a discoverable at-a-glance index at the repo root. The full rationale + section-by-section detail for each version still lives in this spec.
 
 **v3.2.2 changes summary (post-3.2.1 honesty + dependency hygiene):**
 - **`/cco-update` reframed as verifier-only.** Discovered after shipping v3.2.1 that Claude cannot programmatically invoke Claude Code's built-in slash-commands (`/plugin marketplace update`, `/plugin update`) from inside a custom slash-command. The command now honestly describes what it does: read the installed plugin version, the local marketplace HEAD, and the GitHub remote; produce a comparison table; and tell the user the exact commands to run if out of date. No more pretending to be a one-step shortcut. The verification report it produces is still useful (Claude confirms three pointers align).
