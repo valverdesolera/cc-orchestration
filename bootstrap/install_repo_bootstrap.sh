@@ -442,8 +442,25 @@ HOOK
 #!/usr/bin/env bash
 # Keeps the srclight code-intelligence index fresh after each commit.
 # No-op if srclight is not installed or this repo has not been indexed yet.
+#
+# srclight's `index` command unconditionally appends ".srclight/" to the repo's
+# tracked .gitignore (see srclight/cli.py::_ensure_gitignore). We keep
+# ".srclight/" in .git/info/exclude (local-only, never pushed) instead, so the
+# repo's tracked .gitignore must NOT be touched. This wrapper saves .gitignore
+# before srclight runs and restores it afterward.
 if command -v srclight >/dev/null 2>&1 && [[ -d ".srclight" ]]; then
-  srclight index --incremental 2>/dev/null || true
+  if [[ -f .gitignore ]]; then
+    _cco_gi_pre="$(mktemp)"
+    cp .gitignore "$_cco_gi_pre"
+    srclight index >/dev/null 2>&1 || true
+    if ! cmp -s .gitignore "$_cco_gi_pre"; then
+      cp "$_cco_gi_pre" .gitignore
+    fi
+    rm -f "$_cco_gi_pre"
+  else
+    srclight index >/dev/null 2>&1 || true
+    [[ -f .gitignore ]] && rm -f .gitignore
+  fi
 fi
 HOOK
 
@@ -452,9 +469,26 @@ HOOK
 # Keeps the srclight code-intelligence index fresh after branch switches.
 # No-op if srclight is not installed or this repo has not been indexed yet.
 # $3 = 1 means branch checkout (not file checkout); skip file-only checkouts.
+#
+# srclight's `index` command unconditionally appends ".srclight/" to the repo's
+# tracked .gitignore (see srclight/cli.py::_ensure_gitignore). We keep
+# ".srclight/" in .git/info/exclude (local-only, never pushed) instead, so the
+# repo's tracked .gitignore must NOT be touched. This wrapper saves .gitignore
+# before srclight runs and restores it afterward.
 [[ "${3:-0}" == "1" ]] || exit 0
 if command -v srclight >/dev/null 2>&1 && [[ -d ".srclight" ]]; then
-  srclight index --incremental 2>/dev/null || true
+  if [[ -f .gitignore ]]; then
+    _cco_gi_pre="$(mktemp)"
+    cp .gitignore "$_cco_gi_pre"
+    srclight index >/dev/null 2>&1 || true
+    if ! cmp -s .gitignore "$_cco_gi_pre"; then
+      cp "$_cco_gi_pre" .gitignore
+    fi
+    rm -f "$_cco_gi_pre"
+  else
+    srclight index >/dev/null 2>&1 || true
+    [[ -f .gitignore ]] && rm -f .gitignore
+  fi
 fi
 HOOK
 
