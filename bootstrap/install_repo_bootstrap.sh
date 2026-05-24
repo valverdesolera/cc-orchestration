@@ -165,7 +165,7 @@ if [[ "$print_plugins" == 1 ]]; then
   fi
   "$PYTHON3_CMD" - "$ref_json" <<'PYEOF'
 import json, sys
-d = json.load(open(sys.argv[1]))
+d = json.load(open(sys.argv[1], encoding="utf-8"))
 print('# Recommended plugins (run these from inside Claude Code)')
 print(f'# Source: {sys.argv[1]}')
 print(f'# Plugin spec version: {d["version"]}')
@@ -236,7 +236,7 @@ STALE_MCP_ENTRIES = ["microsoftLearn"]  # add more as needed
 
 cfg_path = sys.argv[1]
 try:
-    with open(cfg_path) as f:
+    with open(cfg_path, encoding="utf-8") as f:
         data = json.load(f)
 except Exception as e:
     print(f"WARN: could not parse {cfg_path}; skipping cleanup. ({e})", file=sys.stderr)
@@ -251,7 +251,7 @@ for name in STALE_MCP_ENTRIES:
 
 if removed:
     data["mcpServers"] = mcp_servers
-    with open(cfg_path, "w") as f:
+    with open(cfg_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     print(f"Removed stale MCP entries from ~/.claude.json: {', '.join(removed)}")
     print("(superseded by official plugins; original backed up)")
