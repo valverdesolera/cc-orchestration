@@ -65,9 +65,13 @@ When no plugin exists for a vendor (Google Cloud, AWS, Stripe, Twilio, etc.), th
 
 See the `official-docs-first` skill for the full procedure. **Before proposing any fix, run this skill.**
 
+**Verification status is mandatory.** If documentation cannot be verified through MCPs, official vendor sources, or WebSearch, explicitly label the affected claims as **UNVERIFIED** in the pre-implementation response (§10) and in any post-implementation report (§11). Do not present unverified behavior as fact. The human can choose to accept the risk and proceed — but the unverified status must be visible, not hidden.
+
 ## 4) Repo & codebase research first (use the right tool, not just one)
 
 Before proposing or making changes, research the codebase: architecture, layers, boundaries, naming patterns, utilities, similar implementations, call sites, data flow, config, secrets handling, tests, CI, ownership. Cite repo paths, symbols, and short extracts.
+
+**Prefer reusing existing utilities and abstractions over creating new ones when they fit the confirmed requirements.** New helpers that duplicate existing ones must be justified explicitly in the implementation plan.
 
 For non-trivial research across >3 modules, use `parallel-research-coordinator` and the `parallel-codebase-research-cycle` skill. **Never silently parallelize — ask first** (see §7).
 
@@ -108,7 +112,7 @@ Per iteration, exactly TWO review systems run (custom `code-reviewer` + `/code-r
 
 6. **If either review fails → start a new iteration**: go back to step 1 with the feedback. Repeat steps 1→5.
 7. **If both reviews pass on this iteration → proceed to testing** (step 8).
-8. `test-agent` runs targeted tests first (per `validation-matrix`), then broader validation. For bug fixes and feature work, `assumption-validation-tests` must produce PreTest (FAIL) and PostTest (PASS) artifacts.
+8. `test-agent` runs targeted tests first (per `validation-matrix`), then broader validation, then **lint and type-check if the repo provides them** (see §20 for project defaults). Report which gates ran and which were not configured. For bug fixes and feature work, `assumption-validation-tests` must produce PreTest (FAIL) and PostTest (PASS) artifacts.
 9. **If validation fails → start a new iteration**: go back to step 1 with the test-failure feedback. Repeat steps 1→5 (review), then step 8 again.
 10. **If validation passes → finalize**:
     - `documentation-reviewer` updates `docs/ignored/**` and removes stale/contradictory content.
@@ -205,11 +209,13 @@ After each unit:
 ## What Changed
 ## Files Affected
 ## Documentation Files Created / Updated
-## Validation Run
+## Summary of Documentation Changes (what actually changed in each file, not just the file list)
+## Tests / Lint / Type-Check Results (label any gate that was not configured for this repo)
 ## Pre/Post Test Comparison (per §6)
 ## Architecture Alignment Verdict (from architecture-enforcer)
 ## Comment Policy Verdict (from comment-policy-checker)
-## Remaining Risks / Open Issues
+## Rule Compliance Self-Check (note any rule from §1-§24 whose compliance is uncertain or partial; "fully compliant" if none)
+## Remaining Risks / Open Issues (include any UNVERIFIED claims from §3)
 ```
 
 ## 12) Root-cause convergence for bugs
@@ -223,6 +229,8 @@ For browser-related bugs, prefer `chrome-devtools-mcp@claude-plugins-official` +
 Do not change code without understanding surrounding modules, call sites, data flow, and architectural role.
 
 No TODOs, placeholders, pseudo-code, stubs, speculative abstractions, blanket try/except, unnecessary fallbacks, or over-engineered solutions unless discussed with the human reviewer.
+
+**Prefer the simplest solution that matches the confirmed requirements and current architecture.** When two designs both satisfy the requirements, pick the one with less code, fewer abstractions, and fewer moving parts. Complexity must be justified by a confirmed requirement, not by anticipated future needs.
 
 **Code comments must explain code behavior only.** Never mention implementation plans, Jira tickets, branches, PRs, Claude, Anthropic, or AI generation. Enforced by `post-edit-policy-check.sh` hook AND the bootstrap's Git pre-commit hook AND the `comment-policy-checker` agent.
 
@@ -239,6 +247,19 @@ No TODOs, placeholders, pseudo-code, stubs, speculative abstractions, blanket tr
 ## 15) Documentation hygiene + every-cycle update
 
 Every cycle of code changes triggers `documentation-reviewer` to update `docs/ignored/**`. Plans that go through multiple revisions accumulate stale info — `documentation-refresh` skill prunes it. Workbook-to-long-lived-doc promotion happens only for re-verified durable facts.
+
+### Canonical per-dependency documentation
+
+For every external service, framework, library, SDK, API, database, or platform that this repo researches, integrates with, or modifies, maintain **one dedicated Markdown file** under `docs/ignored/<CanonicalName>Documentation.md`.
+
+- **Naming**: `<CanonicalName>Documentation.md` — canonical, stable, no spaces, no separators. Examples: `StripeDocumentation.md`, `ReactDocumentation.md`, `PostgreSQLDocumentation.md`, `OpenAIApiDocumentation.md`.
+- **Check before create**: before creating a new file, check whether the corresponding canonical file already exists. If it does, UPDATE it instead of creating a duplicate under an alternative name. Do not create multiple files for the same dependency unless the human explicitly requests it.
+- **One dependency per file**: never mix multiple services/frameworks/SDKs in the same file unless explicitly requested.
+- **Required contents** (verified, current, non-conflicting): what it is and why this repo uses it; verified versions / API versions / SDK versions / platform versions; official documentation or MCP sources used for verification; capabilities verified; constraints, limitations, gotchas, edge cases, and security requirements; repo integration points (file paths and modules); interfaces, endpoints, config keys, commands, or signatures actually used; architectural decisions and why they were made.
+- **On change**: when new information is discovered or behavior/implementation changes, immediately update the corresponding file. Rewrite stale sections rather than appending contradictory notes. Remove outdated, duplicate, or conflicting content. Keep each file internally consistent and aligned with current verified documentation.
+- **On removal**: if a dependency is removed or no longer relevant, update or delete its documentation so stale info doesn't linger.
+
+The `documentation-refresh` skill encodes this procedure in full. Both `documentation-reviewer` and any agent doing dependency research must follow it.
 
 `claude-md-management@claude-plugins-official` can be used to audit CLAUDE.md quality and capture learnings; it's a complement, not a replacement, for the per-feature doc reviewer.
 

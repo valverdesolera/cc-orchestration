@@ -1,6 +1,19 @@
 # Claude Code Orchestration — Requirements Specification
 
-Version 3.0.0 · Updated 2026-05-23 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2 of this spec
+Version 3.2.0 · Updated 2026-05-24 · Author: Valverde · Supersedes "Claude Code Improvements.pdf" + v1, v2, v3.0, v3.1 of this spec
+
+**v3.2 changes summary (parity pass against the user's global engineering rules):**
+- **§3** — Added verification-status discipline: unverified external behavior must be labeled UNVERIFIED in pre- and post-implementation responses; not hidden, not a hard stop.
+- **§4** — Added "prefer reusing existing utilities and abstractions" as an explicit positive directive in codebase research.
+- **§5 step 8** — Lint and type-check are now first-class loop gates alongside tests; the agent reports which gates ran and which were not configured.
+- **§11** — Post-implementation response now requires: "Summary of Documentation Changes" (rationale, not just file list), "Tests / Lint / Type-Check Results" (replaces the generic "Validation Run"), "Rule Compliance Self-Check" (note any rule whose compliance is uncertain or partial), and explicit inclusion of UNVERIFIED claims in Remaining Risks.
+- **§13** — Added "prefer the simplest solution that matches confirmed requirements and current architecture" as a positive directive; complexity must be justified by a confirmed requirement, not anticipated future needs.
+- **§15** — Expanded "Canonical per-dependency documentation" subsection: `<CanonicalName>Documentation.md` naming, one-file-per-dependency, check-before-create, required-contents schema, on-change and on-removal rules. Pulled out of the `documentation-refresh` skill into the narrative authority so every agent sees it on every session.
+
+**v3.1 changes summary (preserved):**
+- Bootstrap added `clean_stale_personal_config()` to back up `~/.claude.json` and remove the `microsoftLearn` MCP entry on first run per machine.
+- Restructured repo for GitHub-direct install (`.claude-plugin/marketplace.json` at root; `plugins/claude-code-orchestration/...` underneath; `bootstrap/`, `docs/` siblings).
+- Added `meta-architecture-reviewer` agent (audits the plugin itself).
 
 **v3 changes summary (in response to the self-audit):**
 - Added `meta-architecture-reviewer` agent (the missing requirement A5 from the third message). Read-only; audits the plugin itself.
@@ -623,3 +636,88 @@ Plus, manual MCP installs when needed:
 | OQ12 | `parallel-research-coordinator`'s gap-fill bound of 3 rounds may be too tight for huge codebases. | Tunable; escalation path defined. |
 | OQ13 | `pr-merge-conflict-wait`'s 60-second poll budget is a heuristic. Some PRs need longer GH compute. | Recommend retry after 60s if still UNKNOWN. |
 | OQ14 | `assumption-validation-tests` and `superpowers` TDD may produce redundant artifacts. | Acceptable; the artifacts complement each other for audit. |
+
+---
+
+## v3.2 supplement
+
+This supplement closes the gap between this spec, the plugin's `CLAUDE.md`, and the user's external global engineering rules. Every item below is encoded in `plugins/claude-code-orchestration/CLAUDE.md` v3.2.0.
+
+### §0.2 (new) Verification status discipline
+
+Every claim about external behavior (frameworks, libraries, SDKs, APIs, CLIs, cloud services) must be backed by an MCP, official documentation, or WebSearch citation per `CLAUDE.md §3`. When a claim cannot be verified through any of those, it MUST be explicitly labeled **UNVERIFIED** in:
+- The pre-implementation response (§7.1 → §10 in `CLAUDE.md`)
+- The post-implementation response (§7.5 below → §11 in `CLAUDE.md`, under Remaining Risks)
+
+The human may choose to accept the residual risk and proceed; the unverified status is a transparency requirement, not a hard stop.
+
+**AC-0.2:** `CLAUDE.md §3` enforces the labeling rule. `official-docs-first` skill documents the verification procedure.
+
+### §0.3 (new) Reuse-first directive
+
+When existing utilities, abstractions, or reusable components in the codebase fit the confirmed requirements, prefer reusing them over writing new ones. New helpers that duplicate existing functionality must be justified explicitly in the implementation plan and approved by the human.
+
+**AC-0.3:** `CLAUDE.md §4` declares this as a positive directive. `code-reviewer` and `architecture-enforcer` check for duplication during the review pipeline.
+
+### §0.4 (new) Simplest-solution preference
+
+When two designs both satisfy the confirmed requirements, pick the one with less code, fewer abstractions, and fewer moving parts. Complexity must be justified by a confirmed requirement, not by anticipated future needs.
+
+**AC-0.4:** `CLAUDE.md §13` declares this preference. `code-reviewer` and `performance-reviewer` flag over-engineering during the review pipeline.
+
+### §0.5 (new) Lint and type-check as universal loop gates
+
+In the implementation feedback loop, after targeted tests and broader validation run, the test agent runs lint and type-check **if the repo provides them** (see `CLAUDE.md §20` for project defaults). The agent reports which gates ran and which were not configured. Lint/type-check are no longer "project-specific only" — they are first-class loop gates whenever the repo wires them up.
+
+**AC-0.5:** `CLAUDE.md §5 step 8` requires this. `validation-matrix` skill enumerates the per-stack defaults. `test-agent` reports the gates ran.
+
+### §0.6 (new) Canonical per-dependency documentation (surfaced in narrative authority)
+
+Previously encoded only in the `documentation-refresh` skill, now also surfaced in `CLAUDE.md §15` so every agent sees it on every session. Rules:
+
+- **Naming**: one dedicated Markdown file per external service / framework / library / SDK / API / database / platform, under `docs/ignored/<CanonicalName>Documentation.md`. Canonical, stable name, no spaces, no separators. Examples: `StripeDocumentation.md`, `ReactDocumentation.md`, `PostgreSQLDocumentation.md`, `OpenAIApiDocumentation.md`.
+- **Check before create**: before creating a new documentation file, check whether the corresponding canonical file already exists. If it does, UPDATE it. Do not create duplicates under alternative names.
+- **One dependency per file**: never mix multiple services / frameworks / SDKs in the same file unless explicitly requested.
+- **Required contents** (verified, current, non-conflicting): what it is and why this repo uses it; verified versions / API versions / SDK versions / platform versions; official documentation or MCP sources used for verification; capabilities verified; constraints, limitations, gotchas, edge cases, and security requirements; repo integration points (file paths and modules); interfaces, endpoints, config keys, commands, or signatures actually used; architectural decisions and why they were made.
+- **On change**: when new information is discovered or behavior/implementation changes, immediately update the corresponding file. Rewrite stale sections; do not append contradictory notes. Remove outdated, duplicate, or conflicting content. Keep each file internally consistent.
+- **On removal**: if a dependency is removed or no longer relevant, update or delete its documentation so stale info doesn't linger.
+
+**AC-0.6:** `CLAUDE.md §15` surfaces these rules. `documentation-refresh` skill encodes the full procedure. `documentation-reviewer` agent invokes the skill after every approved unit.
+
+### §7.5 (new) Required post-implementation response per unit
+
+```
+## What Changed
+## Files Affected
+## Documentation Files Created / Updated
+## Summary of Documentation Changes        (what actually changed in each file, not just the file list)
+## Tests / Lint / Type-Check Results       (label any gate that was not configured for this repo)
+## Pre/Post Test Comparison                (per §6.15)
+## Architecture Alignment Verdict          (from architecture-enforcer)
+## Comment Policy Verdict                  (from comment-policy-checker)
+## Rule Compliance Self-Check              (note any rule from CLAUDE.md §1-§24 whose compliance is uncertain or partial; "fully compliant" if none)
+## Remaining Risks / Open Issues           (include any UNVERIFIED claims from §0.2)
+```
+
+This template replaces and extends the implicit post-implementation expectations that were previously distributed across `CLAUDE.md §11`, the implementation-feedback-loop skill, and the per-agent output contracts. The two new line items (`Summary of Documentation Changes`, `Rule Compliance Self-Check`) close the parity gap with the user's external rule #11.
+
+**AC-7.5:** `CLAUDE.md §11` enforces this template. `engineering-orchestrator` produces it after each approved unit. `implementation-feedback-loop` skill references it.
+
+### §10 (extension) New guardrails (v3.2)
+
+| ID | Guardrail | Enforcement |
+|---|---|---|
+| SG17 | Unverified external-behavior claims must be labeled UNVERIFIED, not omitted | `CLAUDE.md §3` + orchestrator pre-/post-implementation templates |
+| SG18 | New utility / abstraction requires justification when an existing one fits | `CLAUDE.md §4` + `code-reviewer` + `architecture-enforcer` |
+| SG19 | Complexity must be justified by a confirmed requirement | `CLAUDE.md §13` + `code-reviewer` + `performance-reviewer` |
+| SG20 | Lint and type-check run as universal loop gates when the repo provides them | `CLAUDE.md §5 step 8` + `test-agent` + `validation-matrix` |
+| SG21 | One canonical `<Name>Documentation.md` per external dependency; check-before-create | `CLAUDE.md §15` + `documentation-refresh` skill + `documentation-reviewer` |
+| SG22 | Post-implementation response includes Rule Compliance Self-Check | `CLAUDE.md §11` + `engineering-orchestrator` |
+
+### Open questions / known limitations (v3.2 additions)
+
+| ID | Question | Notes |
+|---|---|---|
+| OQ15 | "Lint / type-check if the repo provides them" requires the agent to detect what's wired up. Detection may be wrong on repos with non-standard tooling. | Acceptable; the agent reports "not configured" rather than guessing. Human can override. |
+| OQ16 | The Rule Compliance Self-Check is an orchestrator self-attestation; it is not independently audited by another agent. | Acceptable for v3.2; could escalate to a separate compliance-auditor agent in v3.3 if attestation quality drops. |
+| OQ17 | The UNVERIFIED label is a transparency mechanism; the human still chooses whether to proceed. Behavior built on UNVERIFIED claims may regress when the underlying API changes. | Acceptable; the labeling is the contract, not a fix. |
