@@ -166,8 +166,8 @@
     },
     {
       "name": "srclight",
-      "purpose": "Optimized large-codebase search index.",
-      "install": "Manual /mcp add.",
+      "purpose": "Deep code indexing for AI agents: SQLite FTS5 + tree-sitter + embeddings, exposed as an MCP server with 42 code-intelligence tools (symbol search, call graphs, impact analysis, git change intel, semantic search). Local and private.",
+      "install": "pip install srclight, then configure per https://github.com/srclight/srclight (mcp-name: io.github.srclight/srclight).",
       "used_by_agents": ["codebase-researcher"]
     }
   ]

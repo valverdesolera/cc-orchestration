@@ -498,6 +498,14 @@ if [[ -f "$repo/.worktreeinclude" ]]; then
   done < "$repo/.worktreeinclude"
 fi
 
+# Mark .mcp.json as skip-worktree if it is tracked. Lets each worktree have its
+# own local MCP config without dirtying git status or tripping the pre-commit
+# hook. No-op if .mcp.json is not tracked in this repo.
+if git -C "$path" ls-files --error-unmatch .mcp.json >/dev/null 2>&1; then
+  git -C "$path" update-index --skip-worktree .mcp.json
+  echo "Applied skip-worktree to .mcp.json in $path"
+fi
+
 # Run bootstrap in the new worktree so it gets the same Git hooks + excludes.
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -x "$script_dir/../install_repo_bootstrap.sh" ]]; then
