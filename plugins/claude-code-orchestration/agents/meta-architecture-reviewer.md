@@ -84,9 +84,11 @@ For each agent: who invokes it? If only the orchestrator does, fine. If nobody d
 
 For each skill: which agent's frontmatter `skills:` block references it? If none, it's orphan — flag.
 
-### 7. Orchestrator load
+### 7. Orchestrator load and dispatch-allowlist pattern
 
-Count the orchestrator's `tools: Agent(...)` allowlist size and `skills:` block size. If `agents > 18 OR skills > 14`, flag as overloaded and recommend grouping skills or splitting the orchestrator's responsibilities.
+(a) **Dispatch-allowlist smell.** Grep all agent files for `tools: Agent(` (with the parenthetical form). Flag every match. In Claude Code 2.1.150, this form did not resolve bare names against plugin-scoped agent identifiers — the allowlist filtered the dispatch set to empty, blocking all dispatch. The plugin removed it in 3.2.6. If it reappears, see `docs/ignored/workbooks/subagent-dispatch-platform-constraint/Investigation.md` (F8) for the original investigation. Allowlist-style enforcement should instead use user-scope `~/.claude/settings.json` `permissions.deny` rules (see Anthropic sub-agents docs, "Disable specific subagents").
+
+(b) **Prose-allowlist size and skills size.** Count the orchestrator's prose "Allowed specialist agents:" list size and `skills:` block size. If `agents > 18 OR skills > 14`, flag as overloaded and recommend grouping skills or splitting the orchestrator's responsibilities.
 
 ### 8. CLAUDE.md weight
 
@@ -128,6 +130,42 @@ For each multi-agent workflow (implementation feedback loop, plan review cycle, 
 
 Flag missing pieces.
 
+### 13. Nested-dispatch claims (per CLAUDE.md §25)
+
+The Claude Code platform forbids subagents from spawning other subagents. Only the main-thread agent (the orchestrator, by default) may use the `Agent` tool. For every NON-orchestrator agent under `agents/`, grep the body for:
+- "spawn" / "dispatch" / "delegate to <agent-name>"
+- "@<agent-name>" / "use the <agent-name> subagent"
+- Any phrasing that implies the agent itself will fire the `Agent` tool
+
+A subagent telling itself to "dispatch X" is misleading (it cannot) and silently fails. Each such match should be reworded to either: (a) "report a request for X to the orchestrator," or (b) "the orchestrator dispatches X after this agent returns."
+
+Exclude legitimate mentions like "return findings to the orchestrator/coding-agent" (reporting back is fine).
+
+Output per finding:
+- Agent file + line number
+- Quoted offending phrase
+- Recommendation: report-back rewrite | orchestrator-dispatch rewrite | remove
+
+### 14. Plugin frontmatter field whitelist (agents + skills, per Anthropic docs)
+
+**(a) Plugin agents.** Per <https://code.claude.com/docs/en/plugins-reference>, plugin-shipped agents support only these frontmatter fields: `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation`. `hooks`, `mcpServers`, and `permissionMode` are NOT supported and are silently ignored when the plugin loads.
+
+For each agent file under `agents/`, grep the frontmatter for any field outside the whitelist. Flag matches:
+- Field name
+- Agent file
+- Recommendation: remove (silently ignored anyway) or move to user-scope settings
+
+Note: `color` is widely used in agent files and IS accepted by Claude Code's loader at plugin scope, but is not in the docs' enumerated list. Treat it as allowed for now; re-verify if a future docs revision restricts it.
+
+**(b) Plugin skills.** Per <https://code.claude.com/docs/en/skills> ("Frontmatter reference"), plugin-shipped skills support these 15 frontmatter fields: `name`, `description`, `when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell`. Unlike agents, `hooks` IS valid for skills (it scopes hooks to the skill's lifecycle).
+
+For each `skills/*/SKILL.md` file, grep the frontmatter for any field outside this 15-field list. Flag matches:
+- Field name
+- Skill file
+- Recommendation: remove or verify against the latest skills docs (the schema may grow)
+
+Note: unknown-field behavior for skills is not explicitly documented as silent-ignore (unlike agents); treat unknown fields as a warning rather than a hard finding until Anthropic documents otherwise. Canonical reference: `docs/ignored/AnthropicClaudeCodeSkillsDocumentation.md`.
+
 ## Output format
 
 Write `docs/ignored/cc-orchestration-self-review/Plugin-Self-Review-<ISO-timestamp>.md`:
@@ -161,8 +199,13 @@ Plugin version: <from plugin.json>
 ## §6 Orphan agents and skills
 ...
 
-## §7 Orchestrator load
-- Agents in allowlist: N (threshold 18)
+## §7 Orchestrator load and dispatch-allowlist pattern
+### (a) Dispatch-allowlist smell
+- Files matching `tools: Agent(` (parenthetical form): <list, or "0 — pattern absent">
+- Verdict: OK | REGRESSED (cite Investigation.md F8)
+
+### (b) Prose-allowlist size and skills size
+- Allowed specialist agents (prose): N (threshold 18)
 - Skills in block: N (threshold 14)
 - Verdict: OK | OVERLOADED
 
@@ -181,6 +224,15 @@ Plugin version: <from plugin.json>
 
 ## §12 Workflow ordering completeness
 (per workflow: gaps)
+
+## §13 Nested-dispatch claims
+(per non-orchestrator agent: matches with line numbers and rewrite recommendations)
+
+## §14 Plugin frontmatter field whitelist
+### (a) Agents
+(per agent: any field outside the 11-field + `color` whitelist with disposition)
+### (b) Skills
+(per skill: any field outside the 15-field whitelist with disposition)
 
 ## Severity legend
 - Critical: blocks safe operation (e.g., regex divergence between layers)

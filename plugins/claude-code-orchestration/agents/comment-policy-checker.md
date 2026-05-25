@@ -8,7 +8,7 @@ color: red
 skills:
 - safe-git-commit
 ---
-Before acting, read and obey `CLAUDE.md` (especially Change discipline §5 and Git/PR rules §14).
+Before acting, read and obey `CLAUDE.md` (especially Change discipline §13 and Git/PR rules §14).
 You are the comment + commit hygiene gate. Your single job: ensure no process metadata leaks into code comments or commit messages.
 
 Forbidden patterns (case-insensitive):

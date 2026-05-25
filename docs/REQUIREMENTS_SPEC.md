@@ -484,7 +484,7 @@ Official plugins (`feature-dev`, `superpowers`, `code-review`, `context7`, `micr
 | A20 | `architecture-enforcer` | Verifies code aligns with codebase architecture. Returns ALIGNED / DRIFT_ACCEPTABLE_PER_PLAN / DRIFT_REQUIRES_HUMAN_REVIEW / BLOCKED. |
 | A21 | `data-architect` | DB schema, migrations, indexes, query patterns, ORM mappings, data contracts. Read-only; never runs DDL/DML/migrations. |
 | A22 | `comment-policy-checker` | Pre-commit + pre-push gate. Scans code comments and commit messages for forbidden references (tickets, branches, plans, stages, phases, AI attribution). Returns CLEAN / BLOCK. |
-| A23 | `parallel-research-coordinator` | Orchestrates parallel codebase researchers + consistency review + gap-fill rounds + final synthesis. Up to 3 gap-fill rounds before escalating. |
+| A23 | `parallel-research-coordinator` | Read-only planner/synthesizer for multi-area parallel codebase research. Produces per-round decomposition plans, consistency findings, gap-fill plans, and final synthesis. The orchestrator (main thread) does all subagent dispatching — this agent cannot dispatch (CLAUDE.md §25; Claude Code platform rule that subagents cannot spawn subagents). Up to 3 gap-fill rounds before escalating. |
 
 ### §5 (extension) New skills (v2)
 
@@ -528,7 +528,7 @@ Plans accumulate stale content across revisions. The cycle:
 
 For research touching >3 modules. Decompose → ASK PARALLELIZATION → fan-out → consistency reviewer → gap-fill (max 3 rounds) → final synthesis. Each researcher writes its own timestamped file; final synthesis is the only artifact downstream agents read.
 
-**AC-6.13:** `parallel-research-coordinator/agent.md` + `parallel-codebase-research-cycle/SKILL.md`.
+**AC-6.13:** `parallel-research-coordinator.md` (read-only planner/synthesizer) + `parallel-codebase-research-cycle/SKILL.md` (run by the orchestrator, which does the dispatching). The agent's frontmatter must declare `disallowedTools` including `Agent` to make the no-dispatch role explicit at the manifest level.
 
 #### 6.14 Parallelization decision is opt-in
 
@@ -663,7 +663,7 @@ Plus, manual MCP installs when needed:
 | ID | Question | Notes |
 |---|---|---|
 | OQ9 | The strengthened comment-policy regex may produce false-positives on legitimate string literals containing ticket-ID-like patterns. | Bypass with `ALLOW_COMMENT_POLICY_BYPASS=1`. Could be refined to better distinguish comments from string literals. |
-| OQ10 | The orchestrator's `tools: Agent(...)` allowlist now has 22 entries. If new official plugins arrive with overlapping subagent names, conflict resolution is undefined. | Mitigation: namespace-prefix in v2.1 if conflicts emerge. |
+| OQ10 | The orchestrator's `tools: Agent(...)` allowlist now has 22 entries. If new official plugins arrive with overlapping subagent names, conflict resolution is undefined. | **RESOLVED in 3.2.6**: the parenthetical allowlist was removed entirely. In Claude Code 2.1.150, bare names in `tools: Agent(name1, name2, ...)` did NOT resolve against plugin-scoped agent identifiers — the allowlist filtered the dispatch set to empty and blocked ALL subagent dispatch from the orchestrator. The original concern about overlap was therefore not the real issue; the syntax itself was unusable for plugin-shipped agents. Enforcement is now prose-only in the orchestrator's system prompt + the meta-architecture-reviewer audit. If hard enforcement is later wanted, use user-scope `permissions.deny` rules in `~/.claude/settings.json`. Full investigation: `docs/ignored/workbooks/subagent-dispatch-platform-constraint/Investigation.md`. |
 | OQ11 | Plan review cycle's "max 5 rounds" is heuristic. Some plans may legitimately need more. | Acceptable to escalate; document the reasoning. |
 | OQ12 | `parallel-research-coordinator`'s gap-fill bound of 3 rounds may be too tight for huge codebases. | Tunable; escalation path defined. |
 | OQ13 | `pr-merge-conflict-wait`'s 60-second poll budget is a heuristic. Some PRs need longer GH compute. | Recommend retry after 60s if still UNKNOWN. |

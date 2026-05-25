@@ -1,6 +1,6 @@
 ---
 name: implementation-feedback-loop
-description: Use to enforce the mandatory coding, context refresh, code review, testing, documentation review, and retry loop for every implementation unit.
+description: Use to enforce the mandatory coding, context refresh, code review, testing, documentation review, and retry loop for every implementation unit. The orchestrator (main thread) runs this skill and dispatches each agent in the sequence — per CLAUDE.md §25 only the main thread can dispatch subagents.
 ---
 
 # Implementation Feedback Loop
@@ -12,6 +12,8 @@ Use this loop for every approved implementation stage or cohesive unit. Do not c
 The loop CAN iterate many times — that's the point. What's bounded is the number of different review systems per iteration (two: custom code-reviewer + /code-review), not the number of iterations.
 
 ## Per iteration
+
+Every step that names an agent below (`coding-agent`, `architecture-enforcer`, `code-reviewer`, `test-agent`, `documentation-reviewer`, `comment-policy-checker`) is dispatched by the orchestrator; the named agent does not dispatch itself. See CLAUDE.md §25.
 
 1. Confirm the current stage is approved and scoped (first iteration only).
 2. Coding agent implements (first iteration) or applies the minimal fix from the previous iteration's feedback.

@@ -1,7 +1,7 @@
 ---
 name: architecture-enforcer
 description: Use after any non-trivial code change or before approving an implementation plan, to verify the change aligns with the codebase's existing architecture (layers, boundaries, allowed imports, naming, error handling, telemetry, data flow). Read-only. Use the official feature-dev plugin's code-architect agent for greenfield design decisions; this agent is the alignment gate.
-disallowedTools: Edit, Write, NotebookEdit
+disallowedTools: Edit, Write, NotebookEdit, Agent
 model: sonnet
 effort: high
 color: orange

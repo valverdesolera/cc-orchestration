@@ -6,6 +6,52 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.6] — 2026-05-25
+
+### Fixed
+- **Orchestrator dispatch was completely broken in Claude Code 2.1.150** due to `engineering-orchestrator.md`'s `tools: Agent(name1, name2, ...)` allowlist using bare agent names. Plugin agents register under scoped identifiers (`claude-code-orchestration:codebase-researcher`), and the parenthetical allowlist's bare names did not resolve against those scoped names — the allowlist filtered the dispatch set to empty, blocking every `Agent` tool call from the orchestrator including the built-in `general-purpose`. Fix: drop the parenthetical, declare `tools: Agent, Read, Grep, Glob, Bash, PowerShell, Skill` (matches every Anthropic plugin agent's pattern). Anthropic's own official plugins (`feature-dev` 3 agents, `pr-review-toolkit` 6 agents) never use the `Agent(...)` allowlist form — they declare bare tool names only.
+
+  **Behavior change you should know about:** the previous tool-level enforcement of "the orchestrator can only spawn these 23 specialists" is now prose-only — enforced by the "Allowed specialist agents:" line in the orchestrator's system prompt + the `meta-architecture-reviewer` audit. If you need hard tool-level enforcement, add `permissions.deny: ["Agent(forbidden-agent-name)"]` rules to your user-scope `~/.claude/settings.json` per Anthropic's "Disable specific subagents" documentation. Plugin-shipped agents cannot ship hooks (per the plugins-reference docs), so hook-based enforcement must live at user scope, not in this plugin.
+
+  **You must restart Claude Code for this fix to take effect.** Plugin agent definitions are read at session start.
+
+- **Documented the underlying platform constraint** that motivated the fix: per Anthropic's official sub-agents documentation, "**subagents cannot spawn other subagents**" (stated three times in three different sections). Only the main-thread agent (the orchestrator, by default) can invoke the `Agent` tool. This rule was previously implicit in the plugin's design but not stated — leading several agent descriptions and CLAUDE.md sections to imply nested dispatch was possible. New CLAUDE.md §25 makes the constraint explicit and cross-links from §4 (parallel research), §9 (plan review cycle), and other workflows that fan out.
+
+### Changed
+- **`parallel-research-coordinator.md`** — description rewritten to "read-only planner/synthesizer." Frontmatter `disallowedTools` now includes `Agent` (was `Edit, Write, NotebookEdit`). Body preamble explicitly states "you cannot dispatch — the orchestrator does." The agent's algorithm was already correct (its Round 2 algorithm step already said "The orchestrator spawns N codebase-researcher subagents"); only the surrounding language needed clarifying.
+- **`engineering-orchestrator.md`** — workflow step 3 (parallel research) reworded to make explicit that the orchestrator runs the cycle and dispatches the `codebase-researcher` subagents directly. `parallel-research-coordinator` is invoked as a planning/synthesis input, not as a dispatch handoff. The "Allowed specialist agents:" prose list now includes all 23 specialists (previously had 18; the 5 added in v2 — `architecture-enforcer`, `data-architect`, `comment-policy-checker`, `parallel-research-coordinator`, `meta-architecture-reviewer` — were missing from the prose copy even though the tool-level allowlist had them).
+- **`parallel-codebase-research-cycle/SKILL.md`** and **`plan-review-cycle/SKILL.md`** — description fields and round-by-round text reworded to make "the orchestrator spawns/dispatches" subject explicit. Previously the skills used passive voice ("Spawn three independent reviewer subagents") that read as if the skill or coordinator did the spawning. Skills run in the calling thread's context — when invoked from a subagent the dispatch instructions silently no-op, so the explicit subject matters.
+- **`CLAUDE.md`** — §4 (parallel research paragraph and code-exploration table footer) and §9 (plan review cycle) reworded to attribute dispatching to the orchestrator. New §25 documents the platform constraint with citations, cross-references, and footguns (user/project agent shadowing of plugin scope).
+- **`meta-architecture-reviewer.md`** — §7 audit rewritten: (a) flag any agent with `tools: Agent(...)` parenthetical form as the bad-pattern smell that caused this bug; (b) count the orchestrator's PROSE "Allowed specialist agents:" list instead of the (now non-existent) tool-level allowlist. New §13 audit: nested-dispatch claims grep across non-orchestrator agents (catches future regressions where a contributor writes "this agent will dispatch X" in a subagent body). New §14 audit: plugin-agent frontmatter field whitelist per the official plugins-reference (`hooks`, `mcpServers`, `permissionMode` are silently ignored when set on plugin-shipped agents).
+- **`docs/REQUIREMENTS_SPEC.md`** — A23 (parallel-research-coordinator description), AC-6.13 (acceptance criterion), and OQ10 (open question — RESOLVED in this release) updated to reflect the corrected design. OQ10 in particular predicted the problem (overlapping subagent names) but the actual issue turned out to be more fundamental: bare names in the allowlist did not resolve at all, regardless of overlap.
+- **Version sync**: `plugin.json` was at 3.2.5 (matched `marketplace.json`). Both bump to 3.2.6 together. The installed cache may still show 3.2.3 for users who haven't run `/plugin update` since 3.2.4 — they'll need both `/plugin marketplace update` AND `/plugin update` to reach 3.2.6.
+
+### Second-pass review (same release)
+After the dispatch fix landed, an audit of the modified files found additional issues, all fixed in this same release:
+
+- **Stale CLAUDE.md section cross-references** — `agents/data-architect.md` cited "database safety in §8" (§8 is Greenfield vs. brownfield; correct is §19). `agents/comment-policy-checker.md` cited "Change discipline §5" (§5 is the feedback loop; correct is §13). Both fixed.
+- **`agents/pr-creator.md` workflow numbering** — two consecutive steps numbered "6" (the renumber from `6, 6, 7, 8, 9` to `6, 7, 8, 9, 10` was applied).
+- **Passive-voice dispatch wording in shared skills** — `skills/implementation-feedback-loop/SKILL.md`, `skills/root-cause-convergence/SKILL.md`, `skills/plan-review-cycle/SKILL.md` line 67, `CLAUDE.md` §5 step list, and `agents/parallel-research-coordinator.md` rounds 3/5 all had wording that implied a non-orchestrator agent dispatches the next step. All reworded so the orchestrator is the explicit dispatcher, consistent with §25.
+- **CLAUDE.md §25 reinforced with verified primary-source citations** — added the exact quote "A fork cannot spawn further forks" from the official sub-agents docs, plus the documented behavior of `disable-model-invocation: true` ("prevents the skill from being preloaded into subagents") which makes the plugin's 5 `run-*` skills safe by construction.
+- **`agents/meta-architecture-reviewer.md` §14 extended** — formerly audited only agent frontmatter against the 11-field whitelist. Now also audits skill frontmatter against the documented 15-field whitelist (`name`, `description`, `when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell`) per <https://code.claude.com/docs/en/skills>. Canonical reference written to `docs/ignored/AnthropicClaudeCodeSkillsDocumentation.md` (gitignored).
+- **CHANGELOG self-fact-check** — original 3.2.6 entry cited "line 24" of `parallel-research-coordinator.md`; after the `disallowedTools: Agent` edit shifted lines, the quoted text is no longer at line 24. Replaced with a line-number-free reference ("its Round 2 algorithm step") to prevent future drift.
+
+### Verification
+The investigation supporting this release is recorded at `docs/ignored/workbooks/subagent-dispatch-platform-constraint/Investigation.md` (~530 lines). It cites every claim against primary sources (Anthropic docs URLs + file paths + line numbers), logs the open questions that remain (scoped-name allowlist behavior, plugin-scope `settings.json` `agent` field documentation gap, hooks/ audit), and provides a reviewer checklist. The investigation was performed by a single sequential session — the very bug under investigation blocked parallel subagent verification — so the workbook structure prioritizes independent re-verifiability of every finding.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code** (plugin agent files are read at session start)
+4. Verify dispatch works: `@agent-claude-code-orchestration:codebase-researcher` in the typeahead, or ask the orchestrator to run a codebase-researcher on a small task
+
+### Known limitations and future work
+- Whether `tools: Agent(claude-code-orchestration:name1, ...)` (scoped names inside the parenthetical) would have worked is unverified — no Anthropic docs example uses this form, no Anthropic plugin uses it. If hard enforcement returns as a need, this is the first thing to test.
+- The plugin relies on Claude Code honoring the `agent` key from a plugin-scope `settings.json` to auto-activate `engineering-orchestrator` as the main thread. This is observed working but not explicitly documented by Anthropic. Fallback if it ever breaks: `claude --agent engineering-orchestrator`.
+- A separate audit pass over the `implementation-feedback-loop`, `root-cause-convergence`, and `documentation-refresh` skill bodies is recommended to ensure they also explicitly attribute dispatching to the orchestrator. Not blocking; tracked as Rec 4 in the investigation workbook.
+
+---
+
 ## [3.2.5] — 2026-05-24
 
 ### Added

@@ -22,10 +22,10 @@ Workflow:
 4. Inspect PR templates and contribution docs.
 5. Inspect recent merged PRs when `gh` is available.
 6. If the branch is behind, divergent, or has possible merge conflicts, use the merge-conflict-handling skill to diagnose safely before drafting or creating the PR.
-6. Analyze current branch changes with diff/stat/log.
-7. Check for existing PR for the current branch.
-8. Show observed PR convention, title, body, base, head, and commands used.
-9. Use `gh pr create` only when the human explicitly asks to create the PR.
+7. Analyze current branch changes with diff/stat/log.
+8. Check for existing PR for the current branch.
+9. Show observed PR convention, title, body, base, head, and commands used.
+10. Use `gh pr create` only when the human explicitly asks to create the PR.
 
 Rules:
 - Do not invent changes or conventions.

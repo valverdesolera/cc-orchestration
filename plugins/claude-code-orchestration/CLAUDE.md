@@ -73,7 +73,7 @@ Before proposing or making changes, research the codebase: architecture, layers,
 
 **Prefer reusing existing utilities and abstractions over creating new ones when they fit the confirmed requirements.** New helpers that duplicate existing ones must be justified explicitly in the implementation plan.
 
-For non-trivial research across >3 modules, use `parallel-research-coordinator` and the `parallel-codebase-research-cycle` skill. **Never silently parallelize — ask first** (see §7).
+For non-trivial research across >3 modules, the orchestrator (main thread) runs the `parallel-codebase-research-cycle` skill; `parallel-research-coordinator` produces the per-round decomposition and synthesis plans, and the orchestrator does the actual subagent dispatching. Only the main-thread agent may dispatch subagents — see §25. **Never silently parallelize — ask first** (see §7).
 
 **Code-exploration tools, by capability — use them in combination, not just one:**
 
@@ -90,7 +90,7 @@ For non-trivial research across >3 modules, use `parallel-research-coordinator` 
 
 Use `serena` first because it has both a plugin install (one command, no manual MCP setup) and semantic understanding. Fall through to the MCPs for tasks `serena` doesn't cover. Use `Grep`/`Glob` only for trivial lookups that don't need semantic understanding.
 
-For a multi-area research pass, the `parallel-research-coordinator` will pick different tools for different areas (e.g., `serena` for one area, `codeql` for a security-related area, `codegraphcontext` for a call-graph-heavy area).
+For a multi-area research pass, `parallel-research-coordinator` PLANS which tool fits each area (e.g., `serena` for one area, `codeql` for a security-related area, `codegraphcontext` for a call-graph-heavy area), and the orchestrator dispatches a `codebase-researcher` per area with the suggested tool.
 
 ## 5) Canonical implementation feedback loop
 
@@ -98,7 +98,7 @@ For a multi-area research pass, the `parallel-research-coordinator` will pick di
 
 ### Per iteration of the loop
 
-Each iteration runs THIS sequence:
+Each iteration runs THIS sequence (the orchestrator drives each step; per §25, every agent named below is dispatched by the orchestrator, not by the agent that preceded it):
 
 1. `coding-agent` implements or fixes (initial pass writes the unit; later passes apply minimal fixes from the previous iteration's feedback).
 2. `codebase-contextualization` refreshes touched modules under `docs/ignored/context/**`.
@@ -171,7 +171,7 @@ Drift from existing patterns in brownfield requires:
 
 ## 9) Implementation plan + review cycle
 
-Plans go through `plan-review-cycle`: three parallel reviewers (requirements / architecture / feasibility) → consolidation → revision → re-review. Up to 5 rounds; only `Plan-Final.md` is implementable. See `plan-review-cycle` and `plan-folder-organization` skills.
+Plans go through `plan-review-cycle`, run by the orchestrator (main thread): three parallel reviewer dispatches (requirements / architecture / feasibility) → consolidation → revision → re-review. Up to 5 rounds; only `Plan-Final.md` is implementable. Per §25 the orchestrator is the only agent that can dispatch the reviewers. See `plan-review-cycle` and `plan-folder-organization` skills.
 
 Every feature gets its own folder under `docs/ignored/implementation/<feature-slug>/`. **Slug never contains the ticket ID, branch name, or team-internal identifier.** See `plan-folder-organization`.
 
@@ -373,3 +373,21 @@ When creating a worktree:
 ## 24) Mobile / remote use
 
 You can use Claude Code from a phone via the Claude.ai mobile app (which has a Claude Code surface in some plans) or by SSH'ing into a remote workstation that runs Claude Code. See the install guide §17 for details. The plugin runs identically in both — agents/skills/hooks operate at the Claude Code level, not at the terminal level.
+
+## 25) Platform constraint: subagents cannot spawn subagents
+
+Claude Code's platform enforces a hard rule, stated three times in the official sub-agents documentation: **subagents cannot spawn other subagents.** Only the agent running as the main thread (in this plugin's default configuration, `engineering-orchestrator`) can invoke the `Agent` tool. From the Anthropic docs:
+
+> Subagents cannot spawn other subagents. If your workflow requires nested delegation, use Skills or chain subagents from the main conversation.
+>
+> — <https://code.claude.com/docs/en/sub-agents>
+
+Implications for this plugin:
+
+- **The orchestrator is the only dispatcher.** Workflows that fan out (parallel codebase research, plan review cycle, implementation feedback loop, root-cause convergence) are driven by the orchestrator. Specialist subagents like `parallel-research-coordinator` produce plans and synthesis but cannot themselves dispatch — the orchestrator dispatches based on the specialist's plan.
+- **Skills are NOT a workaround.** A skill's content joins the calling thread's context. If a subagent invokes a skill, the skill's "dispatch X" instructions still run inside the subagent and fail silently. Skills' fan-out language ("spawn three reviewers", "dispatch N researchers") describes what the **orchestrator** does when running that skill in main-thread context. `context: fork` in a skill creates a forked subagent that is itself still a subagent — same constraint. The official sub-agents docs state this directly: "A fork cannot spawn further forks." Additionally, `disable-model-invocation: true` "prevents the skill from being preloaded into subagents" (skills docs), so the plugin's `run-*` skills are safe by construction — they cannot be triggered from inside a subagent.
+- **The orchestrator's `tools` field uses bare `Agent` (no parenthetical allowlist).** In Claude Code 2.1.150, the parenthetical form `tools: Agent(name1, name2, …)` failed to resolve bare names against plugin-scoped agent identifiers (`claude-code-orchestration:name1`). The allowlist resolved to an empty set, blocking all dispatch including the built-in `general-purpose`. We removed it in 3.2.6. See `docs/ignored/workbooks/subagent-dispatch-platform-constraint/Investigation.md` for the full investigation.
+- **Enforcement of "which subagents the orchestrator may use" is prose-only**, via the orchestrator's "Allowed specialist agents:" line + the `meta-architecture-reviewer` audit (§7 + §13). If hard tool-level enforcement is wanted, the right channel today is user-scope `~/.claude/settings.json` `permissions.deny: ["Agent(forbidden-agent-name)"]` rules (Anthropic docs, "Disable specific subagents"). Plugin-shipped agents cannot ship hooks per the plugins-reference docs.
+- **Cross-references in this CLAUDE.md that depend on this constraint:** §4 (parallel research — orchestrator dispatches, coordinator plans), §5 (implementation feedback loop — orchestrator dispatches each step), §9 (plan-review-cycle — orchestrator dispatches the three reviewers), §12 (root-cause convergence — orchestrator dispatches the finder agents).
+- **User/project agent shadowing:** plugin agents have priority 5 in Claude Code's scope resolution. If a user later places a `~/.claude/agents/codebase-researcher.md` (priority 4), that file would shadow the plugin's `claude-code-orchestration:codebase-researcher`. The orchestrator's bare-name prose list does not distinguish — the user's version would dispatch. Avoid creating user-scope agents whose names match plugin-scope agents unless that shadowing is intentional.
+- **If Anthropic relaxes this rule in the future**, the cc-orchestration design could grow back into hierarchies. This section should be updated when that happens.
