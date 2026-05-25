@@ -135,6 +135,12 @@
   ],
   "additional_mcps_no_plugin_yet": [
     {
+      "name": "google-developer-knowledge",
+      "purpose": "Google Cloud, Firebase, Android, Chrome, Go, Gemini, TensorFlow, and web.dev official documentation lookup.",
+      "install": "HTTP MCP at https://developerknowledge.googleapis.com/mcp; auto-registered with Claude Code on Google-affiliated installs, otherwise /mcp add google-developer-knowledge https://developerknowledge.googleapis.com/mcp.",
+      "used_by_agents": ["external-documentation-researcher", "data-architect"]
+    },
+    {
       "name": "postman",
       "purpose": "Postman API collections lookup / API testing.",
       "install": "Manual: /mcp add postman (see https://www.postman.com/postman/mcp for current install instructions).",

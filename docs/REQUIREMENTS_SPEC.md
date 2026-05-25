@@ -588,7 +588,8 @@ Plugins are preferred over raw MCPs when both exist. Routing by topic:
 | Any other library/framework | `context7@claude-plugins-official` | vendor MCP, WebSearch |
 | Codebase | `serena@claude-plugins-official` | codegraphcontext, codeql, codanna, tree-sitter, srclight, Grep |
 | Postman | Postman MCP (manual `/mcp add`) | context7, WebSearch |
-| Google Cloud / AWS | Vendor MCP (manual) | context7, WebSearch |
+| Google Cloud / Firebase / Android / Chrome / Go / Gemini / TensorFlow / web.dev | `google-developer-knowledge` MCP (HTTP) | context7, WebSearch |
+| AWS / Stripe / Twilio / other | Vendor MCP (manual) | context7, WebSearch |
 
 **AC-9.v2:** `.mcp.json` has empty `mcpServers` (deferred to plugins). `_recommendedPlugins` in plugin.json lists all 15. CLAUDE.md §3 and §4 enforce the routing.
 
@@ -654,7 +655,8 @@ frontend-design
 Plus, manual MCP installs when needed:
 - Postman MCP
 - codegraphcontext, tree-sitter, codanna, codeql, srclight (no plugin yet)
-- Vendor MCPs (Google Cloud, AWS, Stripe, Twilio, etc.) as needed
+- `google-developer-knowledge` MCP (HTTP, registered as `https://developerknowledge.googleapis.com/mcp`) for Google Cloud / Firebase / Android / Chrome / Go / Gemini / TensorFlow / web.dev
+- Vendor MCPs (AWS, Stripe, Twilio, etc.) as needed
 
 **AC-18:** `_recommendedPlugins` in plugin.json + INSTALL.md §3.1 + bootstrap `--print-plugins` flag.
 

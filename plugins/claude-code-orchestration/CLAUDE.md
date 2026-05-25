@@ -52,13 +52,14 @@ Before analyzing or proposing a change to anything involving a third-party frame
 | Jira, Confluence, Atlassian APIs | `atlassian@claude-plugins-official` | context7 → WebSearch |
 | GitHub API, Actions, code scanning, GraphQL | `github@claude-plugins-official` | context7 → WebSearch |
 | Browser behavior, DOM APIs, web platform | `chrome-devtools-mcp@claude-plugins-official` + `playwright@claude-plugins-official` | MDN via WebSearch → context7 |
+| Google Cloud / Firebase / Android / Chrome / Go / Gemini / TensorFlow / web.dev | `google-developer-knowledge` MCP (HTTP at `https://developerknowledge.googleapis.com/mcp`; auto-registered or via `/mcp add`) | context7 → vendor docs via WebSearch |
 | Any other library / framework / SDK with public docs | `context7@claude-plugins-official` (version-aware) | vendor MCP if exists → WebSearch |
-| Google Cloud / AWS / other vendors without a dedicated plugin yet | Vendor's own MCP if installed (`/mcp add`) | context7 → vendor's official docs via WebSearch |
+| AWS / Stripe / Twilio / other vendors without a dedicated plugin yet | Vendor's own MCP if installed (`/mcp add`) | context7 → vendor's official docs via WebSearch |
 | Codebase facts (your own code) | `serena@claude-plugins-official` (semantic) | `codegraphcontext`, `tree-sitter`, `codanna`, `codeql`, `srclight` MCPs → grep |
 
 Rule: if a vendor-specific plugin exists, using context7 instead is a smell. Use the specialist source.
 
-When no plugin exists for a vendor (Google Cloud, AWS, Stripe, Twilio, etc.), the order is:
+When no plugin / MCP exists for a vendor (AWS, Stripe, Twilio, etc.), the order is:
 1. Vendor's own MCP if you've installed it manually via `/mcp add`
 2. `context7` with the library identifier (it often has them indexed)
 3. `WebSearch` with `site:docs.<vendor>.com` filter, cite the URL

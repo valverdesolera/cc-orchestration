@@ -6,6 +6,21 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.10] — 2026-05-25
+
+### Added
+- **`google-developer-knowledge` MCP routing in §3.** The `google-developer-knowledge` MCP (HTTP, registered at `https://developerknowledge.googleapis.com/mcp`) was already connected on at least one of the maintainer's machines and served real content for Google Cloud, Firebase, Android, Chrome, Go, Gemini, TensorFlow, and web.dev — but CLAUDE.md §3 routed those topics to the generic "Google Cloud / AWS / other vendors" row, which fell through to context7 / WebSearch. Added a dedicated row that routes Google ecosystem topics to `google-developer-knowledge` FIRST. The generic vendor row now lists only `AWS / Stripe / Twilio / other vendors without a dedicated plugin yet` to avoid stale guidance. Mirrored the change in:
+  - `plugins/claude-code-orchestration/CLAUDE.md` §3 routing table + the explanatory paragraph at lines 61-64.
+  - `plugins/claude-code-orchestration/skills/official-docs-first/SKILL.md` routing table.
+  - `plugins/claude-code-orchestration/reference/recommended-plugins.json` `additional_mcps_no_plugin_yet` array (and bootstrap copy).
+  - `docs/REQUIREMENTS_SPEC.md` routing summary + dependency list.
+  Surfaced by the live MCP health check (the MCP was healthy and serving content but no agent routing existed for it).
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+
 ## [3.2.9] — 2026-05-25
 
 ### Fixed
