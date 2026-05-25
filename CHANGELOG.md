@@ -6,6 +6,16 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.9] — 2026-05-25
+
+### Fixed
+- **`hooks/post-edit-policy-check.sh` self-flag bug.** The hook scans edited files for forbidden patterns (Claude/AI attribution, ticket IDs, plan references, etc.) but did not exempt the plugin's own hook scripts — which intentionally embed those literals as `grep` regex needles. Editing any of the 4 affected hooks (`post-edit-policy-check`, `guard-git-and-dangerous-bash`, `guard-mcp-mutations`, `guard-edit-path-policy`) caused the hook to fire on its own body and emit a noisy PostToolUse warning. Fixed by exempting `*/hooks/*.sh` after normalizing Windows backslashes to forward slashes via `tr` (parameter-expansion `${var//\//}` doesn't handle literal backslashes correctly in bash). Surfaced by the live workflow health-check `code-reviewer` dispatch.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+
 ## [3.2.8] — 2026-05-25
 
 ### Changed

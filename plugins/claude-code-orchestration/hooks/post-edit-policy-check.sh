@@ -13,8 +13,13 @@ print(ti.get("file_path") or ti.get("notebook_path") or ti.get("path") or "")' 2
 [[ -z "$file_path" ]] && exit 0
 [[ ! -f "$file_path" ]] && exit 0
 
-case "$file_path" in
-  *docs/ignored/*|*docs/temp/*|*.md|*.markdown|*.txt|*.json|*.lock|*.svg|*.png|*.jpg|*.jpeg|*.gif)
+# Normalize Windows backslashes to forward slashes for pattern matching.
+file_path_norm=$(printf %s "$file_path" | tr '\\' '/')
+
+case "$file_path_norm" in
+  *docs/ignored/*|*docs/temp/*|*.md|*.markdown|*.txt|*.json|*.lock|*.svg|*.png|*.jpg|*.jpeg|*.gif|*/hooks/*.sh)
+    # Plugin hook scripts intentionally contain the forbidden patterns as regex
+    # literals for matching; exempt them from self-scanning.
     exit 0
     ;;
 esac
