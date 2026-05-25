@@ -1,11 +1,11 @@
 ---
 name: parallel-codebase-research-cycle
-description: Use when codebase research needs to traverse multiple independent areas of a large codebase, with parallel researcher subagents, a consistency reviewer, gap-fill rounds, and final synthesis. Driven by `parallel-research-coordinator`. Each researcher writes its own timestamped .md to its area folder.
+description: Use when codebase research needs to traverse multiple independent areas of a large codebase, with parallel researcher subagents, a consistency reviewer, gap-fill rounds, and final synthesis. Invoked by the orchestrator (main thread); the orchestrator does all subagent dispatching (per CLAUDE.md §25). `parallel-research-coordinator` contributes the per-round plans and the final synthesis but does not itself dispatch. Each researcher writes its own timestamped .md to its area folder.
 ---
 
 # Parallel codebase research cycle
 
-This is the procedure the `parallel-research-coordinator` agent runs.
+This procedure is driven by the **orchestrator** (the main-thread agent — the only agent that can dispatch subagents). The `parallel-research-coordinator` subagent contributes decomposition plans, consistency findings, and the final synthesis. The orchestrator runs this skill in its own context and dispatches every subagent the skill calls for. See CLAUDE.md §25 for why this separation is required.
 
 ## When to use
 - Codebase research that touches >3 distinct modules or areas
@@ -28,29 +28,32 @@ If the human says some dependencies exist, serialize those pairs.
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Round 1: Decomposition + parallelization approval        │
-│   coordinator -> human: "areas A, B, C, D"               │
-│   human -> coordinator: "A,B parallel; C depends on B"   │
+│   coordinator -> orchestrator: "propose areas A,B,...".  │
+│   orchestrator -> human: "ok to run in parallel?"        │
+│   human -> orchestrator: "A,B parallel; C after B"       │
 ├─────────────────────────────────────────────────────────┤
-│ Round 2: Parallel researchers (A,B fan-out; C after B)   │
-│   each writes: docs/ignored/context/<area>/              │
-│                Research-<timestamp>.md                    │
+│ Round 2: orchestrator dispatches N codebase-researchers  │
+│   each researcher writes:                                │
+│     docs/ignored/context/<area>/Research-<ts>.md         │
 ├─────────────────────────────────────────────────────────┤
-│ Round 3: Consistency review (single reviewer)            │
-│   reads all per-area files                               │
-│   writes: docs/ignored/context/<task>/                   │
-│           Consistency-<timestamp>.md                      │
+│ Round 3: orchestrator dispatches a consistency reviewer  │
+│   reviewer reads all per-area files                      │
+│   reviewer writes:                                       │
+│     docs/ignored/context/<task>/Consistency-<ts>.md      │
 ├─────────────────────────────────────────────────────────┤
 │ Round 4 (conditional): Gap-fill research                 │
-│   targeted researchers for each gap                      │
-│   append to per-area files with "## Gap-fill" header     │
+│   orchestrator dispatches targeted researchers per gap   │
+│   each appends to its area file with a                   │
+│   "## Gap-fill <ts>" header                              │
 ├─────────────────────────────────────────────────────────┤
 │ Round 5: Re-review                                       │
-│   same reviewer; if converged -> Round 6, else -> Round 4│
-│   Max 3 gap-fill rounds                                  │
+│   orchestrator re-dispatches the consistency reviewer    │
+│   if converged -> Round 6; else -> Round 4 (max 3x)      │
 ├─────────────────────────────────────────────────────────┤
 │ Round 6: Final synthesis                                 │
-│   coordinator writes:                                    │
-│   docs/ignored/context/<task>/Final-Synthesis-<ts>.md    │
+│   coordinator emits synthesis content (read-only agent;  │
+│   cannot write files itself).  Orchestrator writes to:   │
+│     docs/ignored/context/<task>/Final-Synthesis-<ts>.md  │
 └─────────────────────────────────────────────────────────┘
 ```
 

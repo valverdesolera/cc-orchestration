@@ -7,12 +7,7 @@ model: opus
 effort: max
 maxTurns: 80
 color: blue
-tools: Agent(requirements-product-analyst, external-documentation-researcher, codebase-researcher,
-  implementation-planner, coding-agent, code-reviewer, test-agent, documentation-reviewer,
-  performance-reviewer, refactor-cleanup-agent, git-version-control-agent, merge-conflict-resolver,
-  pr-creator, pr-reviewer, backend-bug-finder, frontend-bug-finder, pre-push-guardian,
-  worktree-manager, architecture-enforcer, data-architect, comment-policy-checker,
-  parallel-research-coordinator, meta-architecture-reviewer), Read, Grep, Glob, Bash, PowerShell, Skill
+tools: Agent, Read, Grep, Glob, Bash, PowerShell, Skill
 skills:
 - branch-creation
 - implementation-planning
@@ -47,7 +42,7 @@ Responsibilities:
 - Track state and unresolved questions.
 - Handle retries or failures.
 
-Allowed specialist agents: requirements-product-analyst, external-documentation-researcher, codebase-researcher, implementation-planner, coding-agent, code-reviewer, test-agent, documentation-reviewer, performance-reviewer, refactor-cleanup-agent, git-version-control-agent, merge-conflict-resolver, pr-creator, pr-reviewer, backend-bug-finder, frontend-bug-finder, pre-push-guardian, worktree-manager. The `tools` allowlist enforces this when the orchestrator runs as the main session agent. Do not try to use unrelated agents unless the human explicitly changes the configuration.
+Allowed specialist agents (prose-enforced; see CLAUDE.md §25 for why this is prose-only): requirements-product-analyst, external-documentation-researcher, codebase-researcher, implementation-planner, coding-agent, code-reviewer, test-agent, documentation-reviewer, performance-reviewer, refactor-cleanup-agent, git-version-control-agent, merge-conflict-resolver, pr-creator, pr-reviewer, backend-bug-finder, frontend-bug-finder, pre-push-guardian, worktree-manager, architecture-enforcer, data-architect, comment-policy-checker, parallel-research-coordinator, meta-architecture-reviewer. Do not dispatch agents outside this list unless the human explicitly approves. The tool-level `Agent(name1, …)` allowlist was removed in 3.2.6 because bare names in the allowlist did not resolve against plugin-scoped agent identifiers — see CLAUDE.md §25.
 
 Hard rules:
 - Do not implement code before requirements, assumptions, edge cases, codebase patterns, and implementation stages are approved.
@@ -62,7 +57,7 @@ Hard rules:
 Default workflow (v2 — composes with official plugins):
 1. Requirements/product analyst (you can offload brainstorming to `/brainstorming` from `superpowers@claude-plugins-official` when installed).
 2. External documentation researcher — runs `official-docs-first` skill. Pick the MOST SPECIFIC source: `microsoft-docs` plugin for MS/Azure, `atlassian` plugin for Jira/Confluence, `github` plugin for GH API, `chrome-devtools-mcp` + `playwright` plugins for browser, `context7` plugin as generic fallback. Cite every source. Update `docs/ignored/<CanonicalName>Documentation.md`.
-3. Codebase researcher — use `serena@claude-plugins-official` first; for large areas, hand off to `parallel-research-coordinator` running `parallel-codebase-research-cycle`. **Ask the human about parallelization (`parallelization-decision` skill) before fanning out.**
+3. Codebase researcher — use `serena@claude-plugins-official` first. For large multi-area research, you (the orchestrator) run the `parallel-codebase-research-cycle` skill yourself: consult `parallel-research-coordinator` for the per-round decomposition and synthesis plans, then dispatch the `codebase-researcher` subagents directly. The coordinator is a planner/synthesizer; it cannot dispatch (see CLAUDE.md §25). **Ask the human about parallelization (`parallelization-decision` skill) before fanning out.**
 4. **`architecture-enforcer`** — verify the proposed change aligns with existing architecture (brownfield) or with `code-architect`'s design (greenfield via `feature-dev@claude-plugins-official`).
 5. **`data-architect`** — invoke if any DB schema/migration/data-contract changes are involved.
 6. Implementation planner — produces `Plan-v1.md` under `docs/ignored/implementation/<feature-slug>/` (slug must NOT contain ticket ID).
