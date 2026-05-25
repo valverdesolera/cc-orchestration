@@ -91,6 +91,8 @@ For non-trivial research across >3 modules, the orchestrator (main thread) runs 
 
 Use `serena` first because it has both a plugin install (one command, no manual MCP setup) and semantic understanding. Fall through to the MCPs for tasks `serena` doesn't cover. Use `Grep`/`Glob` only for trivial lookups that don't need semantic understanding.
 
+**Failure mode (audited):** defaulting to `Grep`/`Read`/`Glob` on a semantic task — symbol resolution, call-graph tracing, AST-level analysis, security queries — is a §4 violation. The 7 searching agents (`codebase-researcher`, `code-reviewer`, `backend-bug-finder`, `frontend-bug-finder`, `performance-reviewer`, `pr-reviewer`, `architecture-enforcer`) MUST include a `## Tools Used` section in their output so the orchestrator can audit tool selection. See each agent's "Code-intelligence tool ladder" section for the canonical mapping.
+
 For a multi-area research pass, `parallel-research-coordinator` PLANS which tool fits each area (e.g., `serena` for one area, `codeql` for a security-related area, `codegraphcontext` for a call-graph-heavy area), and the orchestrator dispatches a `codebase-researcher` per area with the suggested tool.
 
 ## 5) Canonical implementation feedback loop

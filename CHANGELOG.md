@@ -6,6 +6,19 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.11] — 2026-05-25
+
+### Fixed
+- **Searching agents defaulted to `Grep`/`Read` instead of specialist code-intelligence MCPs.** Empirical probes (codebase-researcher asked "find all callers of `block`"; code-reviewer asked to cross-reference agent names) confirmed both agents used `Grep` + `Read` and `Glob` + `Read` respectively — neither reached for `serena`, `tree-sitter`, `srclight`, `codeql`, `codanna`, or `codegraphcontext` despite CLAUDE.md §4 routing them there. Root cause: §4 lives in shared CLAUDE.md context but the 7 searching agents' OWN prompts had zero mention of any specialist code-intel MCP, so they reached for the tools their prompt listed (Read/Grep/Glob).
+- Added a `## Code-intelligence tool ladder (per CLAUDE.md §4)` section to each of: `codebase-researcher`, `code-reviewer`, `backend-bug-finder`, `frontend-bug-finder`, `performance-reviewer`, `pr-reviewer`, `architecture-enforcer`. The ladder maps each task type (symbol refs, call graphs, AST queries, static analysis, deep-index search, function discovery) to the canonical MCP and explicitly states Grep/Read/Glob are appropriate only for exact-text / known-file / MCP-degraded cases.
+- Added a `## Tools Used (REQUIRED in output)` section to each of those 7 agents so the orchestrator can audit tool selection post-dispatch and catch grep-default regressions in future.
+- CLAUDE.md §4 closing paragraph now explicitly names this as a failure mode and points at the per-agent tool ladder.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+
 ## [3.2.10] — 2026-05-25
 
 ### Added
