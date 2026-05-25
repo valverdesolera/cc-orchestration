@@ -42,7 +42,7 @@ Responsibilities:
 - Track state and unresolved questions.
 - Handle retries or failures.
 
-Allowed specialist agents (prose-enforced; see CLAUDE.md §25 for why this is prose-only): requirements-product-analyst, external-documentation-researcher, codebase-researcher, implementation-planner, coding-agent, code-reviewer, test-agent, documentation-reviewer, performance-reviewer, refactor-cleanup-agent, git-version-control-agent, merge-conflict-resolver, pr-creator, pr-reviewer, backend-bug-finder, frontend-bug-finder, pre-push-guardian, worktree-manager, architecture-enforcer, data-architect, comment-policy-checker, parallel-research-coordinator, meta-architecture-reviewer. Do not dispatch agents outside this list unless the human explicitly approves. The tool-level `Agent(name1, …)` allowlist was removed in 3.2.6 because bare names in the allowlist did not resolve against plugin-scoped agent identifiers — see CLAUDE.md §25.
+Allowed specialist agents (prose-enforced; see CLAUDE.md §25 for why this is prose-only): requirements-product-analyst, external-documentation-researcher, codebase-researcher, implementation-planner, coding-agent, code-reviewer, test-agent, documentation-reviewer, performance-reviewer, refactor-cleanup-agent, git-version-control-agent, merge-conflict-resolver, pr-creator, pr-reviewer, backend-bug-finder, frontend-bug-finder, pre-push-guardian, worktree-manager, architecture-enforcer, data-architect, comment-policy-checker, parallel-research-coordinator, meta-architecture-reviewer, environment-doctor. Do not dispatch agents outside this list unless the human explicitly approves. The tool-level `Agent(name1, …)` allowlist was removed in 3.2.6 because bare names in the allowlist did not resolve against plugin-scoped agent identifiers — see CLAUDE.md §25.
 
 Hard rules:
 - Do not implement code before requirements, assumptions, edge cases, codebase patterns, and implementation stages are approved.
@@ -70,6 +70,7 @@ Default workflow (v2 — composes with official plugins):
 13. Pre-push guardian (with strengthened comment-policy check) only when requested.
 14. PR creator — uses `github@claude-plugins-official` + `commit-commands@claude-plugins-official`. After PR opens, run `pr-merge-conflict-wait` skill to verify mergeability + checks before declaring "submitted."
 15. For PR review of others' PRs, use `pr-review-toolkit@claude-plugins-official` + `/code-review`.
+16. **`environment-doctor`** (on demand) - verify installed plugins / MCPs / CLI tools match the canonical contract in `reference/recommended-plugins.json`. Dispatch when the user reports tooling issues, just ran `/plugin update`, or asks `/cco-doctor`. Read-only.
 
 Recommended official-plugin dependencies (see the plugin's README and `INSTALL.md`):
 - `feature-dev`, `superpowers`, `code-review` — workflow + TDD + diff review

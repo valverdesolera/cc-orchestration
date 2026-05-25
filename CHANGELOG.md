@@ -6,6 +6,27 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.12] — 2026-05-25
+
+### Added
+- **New specialist agent: `environment-doctor`.** Read-only agent that verifies the user's runtime environment — installed plugins, MCP server health, CLI tool versions, and required-vs-optional dependencies — against the canonical `reference/recommended-plugins.json`. Returns a structured `HEALTHY / DEGRADED / BLOCKING_ISSUES` verdict with exact remediation commands. Models the same `architecture-enforcer` pattern but for environment instead of code.
+- **New skill: `run-environment-doctor`.** Forked-subagent skill (per `disable-model-invocation: true` + `context: fork`) so users can run `/run-environment-doctor` on demand to trigger a full environment sweep.
+- **Orchestrator allowlist + guard-agent-spawn hook allowlist** extended to permit dispatching the new agent (prose list + hook `$allowed` string, kept in sync per the v3.2.7 drift-prevention pattern).
+- **Orchestrator default workflow** gains step 16: dispatch `environment-doctor` on demand (when the user reports tooling issues, just ran `/plugin update`, or asks `/cco-doctor`). Not automatic on every workflow.
+- **CLAUDE.md section 20.5** points at `environment-doctor` for the full health sweep, complementing the per-agent probe-before-use pattern.
+
+### Why
+- The plugin already had `architecture-enforcer` (verifies code architecture) but no read-only verifier for the runtime environment. After the live MCP probe in v3.2.10/3.2.11 surfaced that the maintainer's own installed plugin was multiple versions behind, it was clear the workflow needed a structured way to catch this class of drift proactively.
+
+### Agent count
+- 23 —> 24 specialists. Meta-architecture-reviewer threshold (re-baselined to 25 in v3.2.8) is still not exceeded.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+4. Verify: dispatch `/run-environment-doctor` (or ask the orchestrator to check the environment).
+
 ## [3.2.11] — 2026-05-25
 
 ### Fixed
