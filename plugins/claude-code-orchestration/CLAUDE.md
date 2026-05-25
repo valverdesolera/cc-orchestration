@@ -322,6 +322,8 @@ Each agent that references an official plugin must check whether it's available 
 
 **Probe is not free**: do not probe every plugin on every run. Probe only the plugins the agent is about to use.
 
+**Per-environment health check**: when the user reports tooling issues, just updated plugins, or wants a full sweep, the orchestrator dispatches `environment-doctor`. That agent probes `claude plugin list` + `claude mcp list` + CLI tools, cross-references against `reference/recommended-plugins.json`, and returns a structured report (HEALTHY / DEGRADED / BLOCKING_ISSUES) with exact remediation commands. Triggered on demand or via `/cco-doctor`.
+
 ## 20.6) Postman MCP
 
 Postman is not yet in the official Anthropic plugin marketplace. Install manually when needed:
