@@ -22,6 +22,8 @@ Inputs to gather before any recommendation:
 
 Always ground vendor-specific claims via `context7` plugin or `microsoft-docs` plugin for the exact DB engine + ORM version in use.
 
+**Fallback if neither plugin is installed**: use WebSearch with `site:docs.<vendor>.com` filters and cite the URLs. Label the recommendation as **degraded** (no MCP grounding). See CLAUDE.md §20.5 for the authoritative fallback table.
+
 Decisions you must make explicit:
 - Backwards compatibility: can existing readers/writers tolerate the change during rollout? If not, propose an expand/contract migration plan.
 - Indexing: are required indexes present? Are any becoming redundant? Are any going to bloat?

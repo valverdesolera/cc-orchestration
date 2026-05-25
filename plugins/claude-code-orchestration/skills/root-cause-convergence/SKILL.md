@@ -14,3 +14,8 @@ Use this process when a bug is high impact, production-facing, uncertain, or has
 5. Compare findings. If findings converge, report the supported root cause. If findings diverge, do not claim final root cause; ask for human review and collect more evidence.
 6. A fix may start only after the root cause is sufficiently evidenced or the human accepts the uncertainty.
 7. After the fix, rerun the original reproduction command, failing test, browser flow, CI check, monitoring query, or MCP evidence check when possible.
+
+## Iteration limits
+
+- **Max 3 finder dispatch cycles.** If independent finders still diverge on root cause after 3 rounds of evidence gathering, ESCALATE to human review — further parallel investigation rarely converges and burns tokens. The human decides whether to (a) accept a residual-risk fix, (b) re-scope the investigation, or (c) ship a partial mitigation and continue investigating.
+- Each cycle records its evidence and confidence in the workbook so the convergence audit trail is reviewable.
