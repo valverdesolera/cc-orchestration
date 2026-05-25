@@ -6,6 +6,19 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.8] — 2026-05-25
+
+### Changed
+- **`meta-architecture-reviewer.md` §7(b) thresholds re-baselined.** Previous thresholds (agents > 18, skills > 14) were calibrated against v2's smaller agent surface and were firing OVERLOADED on the legitimate v3.x growth: 23 specialists + 18 skills. New thresholds: agents > 25, skills > 20. Both the inspection rule and the output-format template are updated. A note in the rule itself reminds future maintainers to re-baseline again when the orchestrator approaches the new bounds.
+
+### Verified clean (no edit needed)
+- **`docs/INSTALL.md` recommended-plugin table** — audited per the meta-reviewer §10 spot-check recommendation. The inline table at L110-125 matches `reference/recommended-plugins.json` exactly (15 plugins, same order). L127 correctly defers fallback-behavior details to the canonical JSON. No drift.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+
 ## [3.2.7] — 2026-05-25
 
 ### Fixed

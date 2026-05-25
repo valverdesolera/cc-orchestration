@@ -88,7 +88,7 @@ For each skill: which agent's frontmatter `skills:` block references it? If none
 
 (a) **Dispatch-allowlist smell.** Grep all agent files for `tools: Agent(` (with the parenthetical form). Flag every match. In Claude Code 2.1.150, this form did not resolve bare names against plugin-scoped agent identifiers — the allowlist filtered the dispatch set to empty, blocking all dispatch. The plugin removed it in 3.2.6. If it reappears, see `docs/ignored/workbooks/subagent-dispatch-platform-constraint/Investigation.md` (F8) for the original investigation. Allowlist-style enforcement should instead use user-scope `~/.claude/settings.json` `permissions.deny` rules (see Anthropic sub-agents docs, "Disable specific subagents").
 
-(b) **Prose-allowlist size and skills size.** Count the orchestrator's prose "Allowed specialist agents:" list size and `skills:` block size. If `agents > 18 OR skills > 14`, flag as overloaded and recommend grouping skills or splitting the orchestrator's responsibilities.
+(b) **Prose-allowlist size and skills size.** Count the orchestrator's prose "Allowed specialist agents:" list size and `skills:` block size. If `agents > 25 OR skills > 20`, flag as overloaded and recommend grouping skills or splitting the orchestrator's responsibilities. (Thresholds re-baselined in v3.2.8 — the original 18/14 were calibrated against v2's smaller agent surface and fired on legitimate v3.x growth. Re-baseline again when the orchestrator approaches the new thresholds.)
 
 ### 8. CLAUDE.md weight
 
@@ -205,8 +205,8 @@ Plugin version: <from plugin.json>
 - Verdict: OK | REGRESSED (cite Investigation.md F8)
 
 ### (b) Prose-allowlist size and skills size
-- Allowed specialist agents (prose): N (threshold 18)
-- Skills in block: N (threshold 14)
+- Allowed specialist agents (prose): N (threshold 25)
+- Skills in block: N (threshold 20)
 - Verdict: OK | OVERLOADED
 
 ## §8 CLAUDE.md weight
