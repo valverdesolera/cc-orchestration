@@ -6,6 +6,30 @@ For the canonical changes summaries (with full rationale and references to speci
 
 ---
 
+## [3.2.7] — 2026-05-25
+
+### Fixed
+- **`hooks/guard-agent-spawn.sh` allowlist drift (LATENT CRITICAL).** The hook's `allowed=` shell variable was missing the 5 agents added in v2 (`architecture-enforcer`, `data-architect`, `comment-policy-checker`, `parallel-research-coordinator`, `meta-architecture-reviewer`) — same regression class as the v3.2.6 `tools: Agent(...)` bug, just at the hook layer. The hook was effectively inert in 3.2.6 because the caller-detection logic only triggers when `agent_type` is populated in the tool input (which it currently isn't), but the drift was a timebomb: if Claude Code starts populating that field, dispatch of those 5 agents would silently fail. Fixed by extending both the `allowed=` list and the `case "$caller_base"` block that blocks specialists from nested-dispatching. Also added a drift-warning comment pinning the list to `engineering-orchestrator.md`'s prose. Surfaced by the v3.2.6 meta-architecture-reviewer audit (its first run after shipping the new §13/§14 rules).
+- **Forbidden-pattern regex drift across the 5 enforcement layers.**
+  - `post-edit-policy-check.sh` matched ANY `Co-authored-by:` line (over-broad — flagged legitimate human co-authoring in vendored files). Narrowed to `Co-authored-by:.*(claude|anthropic|gpt|copilot)` to match the bootstrap commit-msg and `comment-policy-checker` agent regex. Also broadened `generated with AI` to `generated with (AI|claude|gpt)`.
+  - bootstrap pre-push hook's AI-attribution regex was `(co-authored-by:.*(claude|anthropic)|generated with claude|...)` — narrower than the commit-msg hook's `(co-authored-by:.*(claude|anthropic|gpt|copilot)|generated with (claude|ai|gpt)|...)`. Broadened pre-push to match. The 5 layers now have consistent AI-attribution coverage.
+  - Added an explanatory comment to bootstrap's commit-msg hook explaining why ticket-ID patterns are INTENTIONALLY not blocked in commit messages (CLAUDE.md §14 explicitly allows `Refs: ABC-123` trailers) while they ARE blocked in code comments. Prevents future "consistency fixes" from accidentally breaking the intentional asymmetry.
+
+### Changed
+- **`agents/architecture-enforcer.md`** — added inline fallback note for when `feature-dev@claude-plugins-official` is not installed (report `DRIFT_REQUIRES_HUMAN_REVIEW` and defer greenfield design to human input). Closes the §11 graceful-degradation gap surfaced by the meta-architecture-reviewer.
+- **`agents/data-architect.md`** — added inline fallback note for when neither `context7@claude-plugins-official` nor `microsoft-docs@claude-plugins-official` is installed (use WebSearch with `site:` filters, label as degraded). Closes the same §11 gap.
+- **`skills/root-cause-convergence/SKILL.md`** — added explicit "Iteration limits" section: max 3 finder dispatch cycles before mandatory human escalation. Brings this skill in line with the loop-bounds discipline already documented for the implementation feedback loop (§5) and the plan/parallel-research cycles (§9, §4).
+
+### Known limitations and future work (carried over)
+- Eleven SKILL.md files are ≤16 body lines (most are 4-line checklists referenced by one bug-finder agent each). Candidates for inlining into the parent agents. Deferred to a separate refactor release because consolidation needs care to preserve the documented per-bug-class output structures.
+- `CLAUDE.md` is 393 lines (threshold 200). Move §3/§4/§10/§11/§20/§20.5 reference tables to `reference/*.md`. Significant edit; deferred to its own release.
+- Orchestrator's "Allowed specialist agents:" prose list is 23 (threshold 18) and its `skills:` block is 18 (threshold 14). Both overloaded per the meta-architecture-reviewer thresholds; the threshold may need re-baselining for v3.x.
+
+### Post-update steps
+1. `/plugin marketplace update`
+2. `/plugin update`
+3. **Restart Claude Code**
+
 ## [3.2.6] — 2026-05-25
 
 ### Fixed

@@ -29,6 +29,7 @@ Checks you must run for each changed file:
 
 Greenfield vs. brownfield mode:
 - Greenfield (new module / new project): delegate the *design* to the official feature-dev plugin's code-architect (via the orchestrator). Your role is to record the chosen architecture as the module's Context File.
+  - **Fallback if `feature-dev` is not installed**: report `DRIFT_REQUIRES_HUMAN_REVIEW` with a note that greenfield design needs explicit human input. See CLAUDE.md §20.5 for the authoritative fallback table.
 - Brownfield (change inside an existing module): you are strict. Drift from existing patterns must be flagged. Drift is only acceptable when the implementation plan explicitly states the change is architectural AND the human has approved it.
 
 Output format:
