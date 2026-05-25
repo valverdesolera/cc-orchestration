@@ -29,8 +29,9 @@ The single most common mistake is reaching for `context7` for everything. It's t
 | Jira / Confluence / Atlassian APIs | `atlassian@claude-plugins-official` | context7 → WebSearch |
 | GitHub API / Actions / GraphQL / code scanning | `github@claude-plugins-official` | context7 → WebSearch |
 | Web platform / DOM APIs / browser behavior | `chrome-devtools-mcp@claude-plugins-official` + `playwright@claude-plugins-official` | MDN via WebSearch → context7 |
+| Google Cloud / Firebase / Android / Chrome / Go / Gemini / TensorFlow / web.dev | `google-developer-knowledge` MCP (HTTP at `https://developerknowledge.googleapis.com/mcp`) | context7 → WebSearch (`site:docs.<vendor>.com`) |
 | Any library / framework / SDK with public docs (React, Next.js, Django, Stripe, etc.) | `context7@claude-plugins-official` (version-aware) | vendor MCP if installed → WebSearch |
-| Google Cloud / AWS / other vendors without a plugin | Vendor's own MCP if installed (`/mcp add`) | context7 → WebSearch (`site:docs.<vendor>.com`) |
+| AWS / Stripe / Twilio / other vendors without a plugin or MCP | Vendor's own MCP if installed (`/mcp add`) | context7 → WebSearch (`site:docs.<vendor>.com`) |
 | Postman / API collection lookups | Postman MCP (manual `/mcp add`) | context7 → WebSearch |
 
 **Plugins are preferred over raw MCPs** because they bundle the MCP, auth, and skills together. If both exist, install the plugin.
